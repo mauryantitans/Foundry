@@ -1,0 +1,7 @@
+google-generativeai
+duckduckgo-search
+pillow
+pandas
+python-dotenv
+imagehash
+google-api-python-client
