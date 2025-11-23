@@ -1,6 +1,10 @@
 import json
 import os
 import datetime
+from tools.bbox_calculator import create_bbox_calculator, calculate_bbox
+from utils.logger import get_logger
+
+logger = get_logger("engineer")
 
 class EngineerAgent:
     def __init__(self, output_folder="data/output", query="Object"):
@@ -30,6 +34,8 @@ class EngineerAgent:
         }
         self.annotation_id = 1
         self.image_id = 1
+        # Initialize bbox calculator for reliable calculations
+        self.bbox_calculator = create_bbox_calculator()
 
     def process_item(self, filename, data):
         """Adds a single image's annotations to the COCO dataset."""
@@ -52,54 +58,88 @@ class EngineerAgent:
         items = data["bboxes"]
         
         for item in items:
-            if isinstance(item, list):
-                # Legacy format
-                bbox_norm = item
-                category_id = 1
-            else:
-                # New format
-                bbox_norm = item['bbox']
-                label = item.get('label')
-                # Try to match label to category, default to 1 if not found or fuzzy match?
-                # For now, assume exact match or first category
-                category_id = self.cat_name_to_id.get(label, 1)
+            try:
+                if isinstance(item, list):
+                    # Legacy format
+                    bbox_norm = item
+                    category_id = 1
+                else:
+                    # New format
+                    bbox_norm = item['bbox']
+                    label = item.get('label')
+                    # Try to match label to category, default to 1 if not found or fuzzy match?
+                    # For now, assume exact match or first category
+                    category_id = self.cat_name_to_id.get(label, 1)
 
-            ymin, xmin, ymax, xmax = bbox_norm
-            
-            abs_x = (xmin / 1000) * data["width"]
-            abs_y = (ymin / 1000) * data["height"]
-            abs_w = ((xmax - xmin) / 1000) * data["width"]
-            abs_h = ((ymax - ymin) / 1000) * data["height"]
-            
-            self.coco_data["annotations"].append({
-                "id": self.annotation_id,
-                "image_id": self.image_id,
-                "category_id": category_id,
-                "segmentation": [],
-                "area": abs_w * abs_h,
-                "bbox": [abs_x, abs_y, abs_w, abs_h],
-                "iscrowd": 0
-            })
-            
-            self.annotation_id += 1
+                # Validate bbox format before unpacking
+                if not isinstance(bbox_norm, list) or len(bbox_norm) != 4:
+                    logger.warning(f"Invalid bbox format for {filename}: {bbox_norm} (expected list of 4 values)")
+                    continue
+                
+                ymin, xmin, ymax, xmax = bbox_norm
+                
+                # Use code executor for reliable bbox calculations
+                calc_result = calculate_bbox(
+                    normalized_bbox=[ymin, xmin, ymax, xmax],
+                    image_width=data["width"],
+                    image_height=data["height"],
+                    calculator_agent=self.bbox_calculator
+                )
+                
+                if calc_result["status"] == "success":
+                    bbox = calc_result["bbox"]
+                    # Ensure we have exactly 4 values
+                    if len(bbox) == 4:
+                        abs_x, abs_y, abs_w, abs_h = bbox
+                    else:
+                        logger.warning(f"Invalid bbox length: {len(bbox)}, using fallback")
+                        abs_x = (xmin / 1000) * data["width"]
+                        abs_y = (ymin / 1000) * data["height"]
+                        abs_w = ((xmax - xmin) / 1000) * data["width"]
+                        abs_h = ((ymax - ymin) / 1000) * data["height"]
+                else:
+                    # Fallback to manual calculation if code executor fails
+                    logger.warning(f"Code executor failed, using fallback: {calc_result.get('error_message')}")
+                    abs_x = (xmin / 1000) * data["width"]
+                    abs_y = (ymin / 1000) * data["height"]
+                    abs_w = ((xmax - xmin) / 1000) * data["width"]
+                    abs_h = ((ymax - ymin) / 1000) * data["height"]
+                
+                self.coco_data["annotations"].append({
+                    "id": self.annotation_id,
+                    "image_id": self.image_id,
+                    "category_id": category_id,
+                    "segmentation": [],
+                    "area": abs_w * abs_h,
+                    "bbox": [abs_x, abs_y, abs_w, abs_h],
+                    "iscrowd": 0
+                })
+                
+                self.annotation_id += 1
+                
+            except Exception as e:
+                logger.error(f"Error processing bbox in {filename}: {e}", exc_info=True)
+                continue
         self.image_id += 1
-        print(f"   ✅ Engineered: {filename} ({len(items)} objects)")
+        logger.info(f"Engineered: {filename} ({len(items)} objects)")
 
     def save(self):
         """Saves the current COCO dataset to disk."""
+        # Ensure directory exists
+        os.makedirs(self.output_folder, exist_ok=True)
         output_path = os.path.join(self.output_folder, "coco.json")
         with open(output_path, 'w') as f:
             json.dump(self.coco_data, f, indent=4)
-        print(f"⚙️  Engineer: Saved COCO dataset to {output_path}")
+        logger.info(f"Saved COCO dataset to {output_path}")
         return output_path
 
     def engineer(self, annotations, query):
         """Legacy method for batch processing."""
-        print(f"⚙️  Engineer: Formatting dataset for '{query}'...")
-        # Re-init for batch
-        self.__init__(self.output_folder, query)
+        logger.info(f"Formatting dataset for '{query}'...")
+        # Create a new instance for batch processing
+        engineer = EngineerAgent(output_folder=self.output_folder, query=query)
         
         for filename, data in annotations.items():
-            self.process_item(filename, data)
+            engineer.process_item(filename, data)
             
-        return self.save()
+        return engineer.save()

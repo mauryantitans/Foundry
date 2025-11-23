@@ -2,6 +2,9 @@ import os
 from agents.base_agent import Agent
 from tools.search_tool import google_search_images
 from utils.file_manager import save_image
+from utils.logger import get_logger
+
+logger = get_logger("miner")
 
 class MinerAgent(Agent):
     def __init__(self, download_folder="data/raw"):
@@ -21,12 +24,17 @@ class MinerAgent(Agent):
     def mine(self, query, max_images=10):
         """
         Mines images using the AI agent with tools.
+        
+        Returns:
+            dict with status and data:
+            Success: {"status": "success", "data": [...], "count": 5}
+            Error: {"status": "error", "error_message": "...", "data": [], "count": 0}
         """
-        print(f"⛏️  Miner: Received request to mine {max_images} images for '{query}' starting at index {self.search_index}")
+        logger.info(f"Received request to mine {max_images} images for '{query}' starting at index {self.search_index}")
         
         # We ask the agent to find the images.
-        # The agent will call the tool, and the tool will return URLs.
-        prompt = f"Find {max_images} images of '{query}' starting at index {self.search_index}. Return ONLY a JSON list of the image URLs found."
+        # The agent will call the tool, and the tool will return structured response.
+        prompt = f"Find {max_images} images of '{query}' starting at index {self.search_index}. Use the google_search_images tool and return the URLs found."
         response_text = self.run(prompt)
         
         import json
@@ -44,17 +52,19 @@ class MinerAgent(Agent):
                 # Fallback: try to find http links
                 urls = re.findall(r'https?://[^\s<>"]+|www\.[^\s<>"]+', response_text)
         except Exception as e:
-            print(f"   ⚠️ Error parsing agent response: {e}")
+            logger.warning(f"Error parsing agent response: {e}")
             
-        print(f"   Miner Agent found {len(urls)} URLs.")
+        logger.info(f"Miner Agent found {len(urls)} URLs")
         
         count = 0
         saved_paths = []
+        errors = []
+        
         for url in urls:
             if count >= max_images:
                 break
             
-            print(f"   Downloading: {url[:50]}...")
+            logger.debug(f"Downloading: {url[:50]}...")
             saved_path = save_image(url, self.download_folder)
             
             if saved_path:
@@ -66,7 +76,7 @@ class MinerAgent(Agent):
                     is_duplicate = False
                     for seen_hash in self.seen_hashes:
                         if img_hash - seen_hash < 5:
-                            print(f"   👯 Duplicate detected and removed: {saved_path}")
+                            logger.debug(f"Duplicate detected and removed: {saved_path}")
                             is_duplicate = True
                             break
                     
@@ -77,25 +87,39 @@ class MinerAgent(Agent):
                     self.seen_hashes.append(img_hash)
                     count += 1
                     saved_paths.append(saved_path)
-                    print(f"   ✅ Saved to {saved_path}")
+                    logger.debug(f"Saved to {saved_path}")
                     
                 except Exception as e:
-                    print(f"   ⚠️ Error checking hash for {saved_path}: {e}")
-                    # If we can't open it, it might be corrupt, so maybe don't count it?
-                    # For now, let's assume if save_image worked, it's a file.
-                    # But if Image.open fails, it's not a valid image.
+                    logger.warning(f"Error checking hash for {saved_path}: {e}")
+                    # If we can't open it, it might be corrupt
                     if os.path.exists(saved_path):
                          os.remove(saved_path)
+                    errors.append(f"Hash check failed for {url[:50]}: {str(e)}")
             else:
-                print(f"   ❌ Failed to download")
+                logger.warning(f"Failed to download: {url[:50]}...")
+                errors.append(f"Download failed: {url[:50]}")
         
         # Update search index for next time
-        # We increment by the number of URLs found (or requested) to page forward
-        # Google Search index is 1-based.
-        self.search_index += len(urls)
-        if len(urls) == 0:
-             # If no URLs found, maybe jump a bit or just stop?
-             # Let's increment by max_images to try to get past a bad block
-             self.search_index += max_images
-                
-        return saved_paths
+        if len(urls) > 0:
+            self.search_index += len(urls)
+        else:
+            self.search_index += min(max_images, 10)
+        
+        if saved_paths:
+            logger.info(f"Mining completed: {len(saved_paths)} images saved")
+            return {
+                "status": "success",
+                "data": saved_paths,
+                "count": len(saved_paths),
+                "errors": errors if errors else None
+            }
+        else:
+            error_msg = f"No images saved. Errors: {len(errors)}"
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "error_message": error_msg,
+                "data": [],
+                "count": 0,
+                "errors": errors
+            }

@@ -13,6 +13,9 @@ def create_directories(base_path):
 def save_image(url, save_folder):
     """Downloads and saves an image from a URL. Returns the file path or None."""
     try:
+        # Ensure directory exists
+        os.makedirs(save_folder, exist_ok=True)
+        
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         
@@ -36,6 +39,8 @@ def save_image(url, save_folder):
 
 def list_images(folder_path):
     """Returns a list of image paths in a folder."""
+    if not os.path.exists(folder_path):
+        return []
     valid_exts = ['.jpg', '.jpeg', '.png']
     return [os.path.join(folder_path, f) for f in os.listdir(folder_path) 
             if os.path.splitext(f)[1].lower() in valid_exts]
