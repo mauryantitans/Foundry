@@ -262,8 +262,8 @@ foundry/
 
 1. **Clone the repository:**
 ```bash
-git clone <repository-url>
-cd kaggle_capstone
+git clone https://github.com/mauryantitans/Foundry
+cd Foundry
 ```
 
 2. **Create virtual environment:**
