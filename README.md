@@ -52,8 +52,8 @@ Foundry is an intelligent, multi-agent system that automates the entire pipeline
 
 1. **Clone and setup:**
 ```bash
-git clone <repository-url>
-cd kaggle_capstone
+git clone [<repository-url>](https://github.com/mauryantitans/Foundry.git)
+cd Foundry
 python -m venv venv
 
 # Windows
