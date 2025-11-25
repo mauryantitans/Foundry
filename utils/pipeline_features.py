@@ -23,7 +23,8 @@ class PipelineFeatures:
         self, 
         enable_metrics: bool = True,
         enable_quality_loop: bool = False,  # Optional, adds processing time
-        quality_loop_iterations: int = 2
+        quality_loop_iterations: int = 2,
+        validation_method: str = "coordinate"  # coordinate, visual, or hybrid
     ):
         """
         Initialize pipeline features.
@@ -32,10 +33,12 @@ class PipelineFeatures:
             enable_metrics: Enable metrics collection
             enable_quality_loop: Enable quality refinement loop
             quality_loop_iterations: Max iterations for quality loop
+            validation_method: Validation method - "coordinate", "visual", or "hybrid"
         """
         self.enable_metrics = enable_metrics
         self.enable_quality_loop = enable_quality_loop
         self.quality_loop_iterations = quality_loop_iterations
+        self.validation_method = validation_method
         
         # Initialize components
         self.metrics = get_metrics_collector() if enable_metrics else None
@@ -46,15 +49,17 @@ class PipelineFeatures:
         logger.info(f"  - Quality Loop: {'✅ Enabled' if enable_quality_loop else '❌ Disabled'}")
         if enable_quality_loop:
             logger.info(f"    → Max iterations: {quality_loop_iterations}")
+            logger.info(f"    → Validation method: {validation_method}")
     
     def create_quality_loop(self, annotator_agent):
         """Create quality refinement loop instance."""
         if self.enable_quality_loop and not self.quality_loop:
             self.quality_loop = AnnotationRefinementLoop(
                 annotator_agent=annotator_agent,
-                max_iterations=self.quality_loop_iterations
+                max_iterations=self.quality_loop_iterations,
+                validation_method=self.validation_method
             )
-            logger.info("Quality refinement loop created")
+            logger.info(f"Quality refinement loop created with {self.validation_method} validation")
         return self.quality_loop
     
     def get_metrics(self):
@@ -74,7 +79,8 @@ _features_instance = None
 def initialize_pipeline_features(
     enable_metrics: bool = True,
     enable_quality_loop: bool = False,
-    quality_loop_iterations: int = 2
+    quality_loop_iterations: int = 2,
+    validation_method: str = "coordinate"
 ) -> PipelineFeatures:
     """
     Initialize pipeline features globally.
@@ -83,6 +89,7 @@ def initialize_pipeline_features(
         enable_metrics: Enable metrics collection
         enable_quality_loop: Enable quality refinement loop
         quality_loop_iterations: Max iterations for quality loop
+        validation_method: Validation method - "coordinate", "visual", or "hybrid"
         
     Returns:
         PipelineFeatures instance
@@ -91,7 +98,8 @@ def initialize_pipeline_features(
     _features_instance = PipelineFeatures(
         enable_metrics=enable_metrics,
         enable_quality_loop=enable_quality_loop,
-        quality_loop_iterations=quality_loop_iterations
+        quality_loop_iterations=quality_loop_iterations,
+        validation_method=validation_method
     )
     return _features_instance
 

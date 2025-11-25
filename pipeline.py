@@ -15,13 +15,17 @@ genai.configure(api_key=GEMINI_API_KEY)
 from utils.logger import setup_logging
 setup_logging()
 
-# Initialize advanced pipeline features
+# Initialize config and advanced pipeline features
+from utils.config_loader import initialize_config
 from utils.pipeline_features import initialize_pipeline_features
 
 from agents.main_agent import MainAgent
 
 def main():
     parser = argparse.ArgumentParser(description="Foundry AI-Powered Dataset Creation System")
+    
+    # Config file argument
+    parser.add_argument("--config", type=str, help="Path to YAML config file")
     
     # Original arguments
     parser.add_argument("--request", type=str, help="Natural language request (e.g., 'find 5 images of cats')")
@@ -32,41 +36,60 @@ def main():
     # Advanced feature arguments
     parser.add_argument("--no-metrics", action="store_true", help="Disable metrics collection")
     parser.add_argument("--enable-quality-loop", action="store_true", help="Enable quality refinement loop (slower but better quality)")
-    parser.add_argument("--quality-iterations", type=int, default=2, help="Max iterations for quality loop (default: 2)")
+    parser.add_argument("--quality-iterations", type=int, help="Max iterations for quality loop (default: 2)")
+    parser.add_argument("--validation-method", type=str, choices=["coordinate", "visual", "hybrid"],
+                       help="Quality loop validation method: coordinate (fast), visual (accurate), hybrid (best)")
     parser.add_argument("--show-metrics", action="store_true", help="Show detailed metrics summary at end")
     
     args = parser.parse_args()
     
-    # Initialize pipeline features with command-line options
+    # Initialize config (load from file if provided, then override with CLI args)
+    config = initialize_config(config_path=args.config, args=args)
+    
+    # Print config summary if config file was used
+    if args.config:
+        config.print_summary()
+    
+    # Initialize pipeline features using config values
     features = initialize_pipeline_features(
-        enable_metrics=not args.no_metrics,
-        enable_quality_loop=args.enable_quality_loop,
-        quality_loop_iterations=args.quality_iterations
+        enable_metrics=config.get('metrics.enabled', True),
+        enable_quality_loop=config.get('quality_loop.enabled', False),
+        quality_loop_iterations=config.get('quality_loop.max_iterations', 2),
+        validation_method=config.get('quality_loop.validation_method', 'coordinate')
     )
     
     # Display feature status
-    if args.enable_quality_loop:
+    if config.get('quality_loop.enabled'):
         print("🔄 Quality Refinement Loop: ENABLED")
-        print(f"   → Max iterations: {args.quality_iterations}")
+        print(f"   → Max iterations: {config.get('quality_loop.max_iterations')}")
+        print(f"   → Validation method: {config.get('quality_loop.validation_method')}")
         print("   ⚠️  This will increase processing time but improve annotation quality\n")
     
     agent = MainAgent()
     
-    # Interactive mode: No arguments provided
-    if not any([args.request, args.query, args.count, args.dir]):
+    # Get pipeline settings from config
+    query = config.get('pipeline.query')
+    count = config.get('pipeline.count')
+    request = config.get('pipeline.request')
+    mode = config.get('pipeline.mode')
+    image_dir = config.get('pipeline.image_dir')
+    
+    # Interactive mode: If no specific task (query/request/dir) is provided, run interactive
+    # We ignore 'count' here because it might be a default setting in config
+    if not any([request, query, image_dir]):
         agent.run_interactive_mode()
-    elif args.dir:
+    elif mode == 'byod' or image_dir:
         # BYOD Mode: Process directory of images
-        if not args.query:
-            print("❌ Error: --query is required when using --dir mode")
+        if not query:
+            print("❌ Error: query is required when using BYOD mode")
             return
-        agent.run_byod_mode(image_dir=args.dir, query=args.query)
+        agent.run_byod_mode(image_dir=image_dir, query=query)
     else:
         # Standard mode: Mine, curate, and annotate
-        agent.run_pipeline(user_request=args.request, query=args.query, count=args.count)
+        agent.run_pipeline(user_request=request, query=query, count=count)
     
     # Show metrics summary if requested
-    if args.show_metrics or args.enable_quality_loop:
+    if config.get('metrics.show_summary') or config.get('quality_loop.enabled'):
         features.print_metrics_summary()
 
 if __name__ == "__main__":

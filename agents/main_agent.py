@@ -31,8 +31,8 @@ class MainAgent(Agent):
         self.miner = MinerAgent()
         self.curator = CuratorAgent()
         self.annotator = AnnotatorAgent()
-        # Parallel annotator for batch processing (Phase 1 improvement)
-        self.parallel_annotator = ParallelAnnotatorAgent(num_workers=3)
+        # Parallel annotator will be initialized in run methods with quality loop if needed
+        self.parallel_annotator = None
         # EngineerAgent will be initialized when we know the query
         self.engineer = None 
 
@@ -42,6 +42,15 @@ class MainAgent(Agent):
         # Get metrics collector (if enabled)
         features = get_pipeline_features()
         metrics = features.get_metrics() if features.enable_metrics else None
+        
+        # Initialize quality loop if enabled
+        quality_loop = None
+        if features.enable_quality_loop:
+            quality_loop = features.create_quality_loop(self.annotator)
+            logger.info(f"🔄 Quality refinement loop enabled (max {features.quality_loop_iterations} iterations)")
+        
+        # Initialize parallel annotator with quality loop
+        self.parallel_annotator = ParallelAnnotatorAgent(num_workers=3, quality_loop=quality_loop)
         
         # Start metrics tracking
         if metrics:
@@ -137,7 +146,14 @@ class MainAgent(Agent):
                 logger.info(f"Using parallel annotation for {len(curated_images)} images")
                 annotations = self.parallel_annotator.annotate_parallel(query, curated_images)
             else:
-                annotations = self.annotator.annotate(query, curated_images)
+                # For single image, check if quality loop is enabled
+                if self.parallel_annotator and self.parallel_annotator.quality_loop:
+                    logger.info("Using quality refinement loop for single image")
+                    result = self.parallel_annotator.quality_loop.annotate_with_refinement(curated_images[0], query)
+                    filename = os.path.basename(curated_images[0])
+                    annotations = {filename: result} if result else {}
+                else:
+                    annotations = self.annotator.annotate(query, curated_images)
             annotate_time = time.time() - annotate_start
             
             annotated_count = len(annotations)
@@ -196,6 +212,15 @@ class MainAgent(Agent):
         # Get metrics collector (if enabled)
         features = get_pipeline_features()
         metrics = features.get_metrics() if features.enable_metrics else None
+        
+        # Initialize quality loop if enabled
+        quality_loop = None
+        if features.enable_quality_loop:
+            quality_loop = features.create_quality_loop(self.annotator)
+            logger.info(f"🔄 Quality refinement loop enabled (max {features.quality_loop_iterations} iterations)")
+        
+        # Initialize parallel annotator with quality loop
+        self.parallel_annotator = ParallelAnnotatorAgent(num_workers=3, quality_loop=quality_loop)
         
         # Start metrics tracking
         if metrics:
@@ -305,22 +330,35 @@ class MainAgent(Agent):
         print("\n" + "="*70)
         print("🤖 Foundry: AI-Powered Dataset Creation System")
         print("="*70)
-        print("\nWelcome! I'm your AI assistant for creating object detection datasets.")
-        print("I can help you in two ways:\n")
-        print("  1️⃣  Create a new dataset: I'll search, curate, and annotate images")
-        print("  2️⃣  Annotate existing images: Provide a folder path and I'll detect objects\n")
+        print("\n📚 What I Can Do For You:\n")
         
-        # Professional prompt using the LLM
-        prompt = (
-            "Please ask the user professionally what object detection dataset they would like to create. "
-            "Explain that they can either:\n"
-            "1. Request a new dataset (e.g., 'create 5 images of dogs' or 'I need 10 images of cats and dogs')\n"
-            "2. Provide a folder path with existing images to annotate (e.g., 'I have images at /path/to/folder, detect dogs in them')\n"
-            "Be friendly, professional, and concise. Just ask the question, don't provide examples in your response."
-        )
+        print("┌─ MODE 1: CREATE NEW DATASET ─────────────────────────────────┐")
+        print("│ I'll search the web, curate quality images, and annotate    │")
+        print("│ them with bounding boxes automatically.                     │")
+        print("└──────────────────────────────────────────────────────────────┘")
+        print("\n💡 Examples:")
+        print("   • 'create 5 images of dogs'")
+        print("   • 'get me 10 bicycle images'")
+        print("   • 'I need 15 images of cats and dogs'  (multi-object)")
+        print("   • 'find 20 car images'\n")
         
-        response = self.run(prompt)
-        print(f"\n{response}\n")
+        print("┌─ MODE 2: ANNOTATE YOUR OWN IMAGES (BYOD) ───────────────────┐")
+        print("│ Already have images? Give me the folder path and I'll       │")
+        print("│ detect and annotate objects for you.                        │")
+        print("└──────────────────────────────────────────────────────────────┘")
+        print("\n💡 Examples:")
+        print("   • 'annotate dogs in C:\\Users\\me\\my_photos'")
+        print("   • 'I have images at /home/user/pics, detect cats'")
+        print("   • 'detect bicycles in C:\\images\\bikes'\n")
+        
+        print("┌─ FEATURES ───────────────────────────────────────────────────┐")
+        print("│ ✓ Multi-object detection (e.g., 'dogs and cats')            │")
+        print("│ ✓ Quality refinement loop (iterative improvement)           │")
+        print("│ ✓ COCO format output (ready for PyTorch, TensorFlow)        │")
+        print("│ ✓ Automatic deduplication                                   │")
+        print("└──────────────────────────────────────────────────────────────┘\n")
+        
+        print("🎯 What would you like to do today?\n")
         
         # Get user input
         user_input = input("Your request: ").strip()

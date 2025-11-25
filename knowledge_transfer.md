@@ -103,6 +103,46 @@ Observer Pattern                # Metrics & logging
 │                   COCO OUTPUT                               │
 │              data/output/coco.json                          │
 └─────────────────────────────────────────────────────────────┘
+
+### **2. Configuration System**
+
+**File:** `utils/config_loader.py` & `config.yaml`
+
+Foundry uses a layered configuration system:
+
+1.  **Defaults:** Hardcoded safe defaults
+2.  **Config File:** `config.yaml` (System Settings)
+3.  **CLI Arguments:** Overrides everything (Job Parameters)
+
+**Config Structure (`config.yaml`):**
+```yaml
+pipeline:
+  mode: "standard"
+quality_loop:
+  enabled: true
+  validation_method: "visual"  # The magic happens here
+annotation:
+  num_workers: 3
+```
+
+**Loading Logic:**
+```python
+def initialize_config(config_path=None, cli_args=None):
+    # 1. Load defaults
+    config = Config()
+    
+    # 2. Merge YAML
+    if config_path:
+        config.load_from_yaml(config_path)
+        
+    # 3. Apply CLI overrides
+    if cli_args:
+        if cli_args.query: config.set('pipeline.query', cli_args.query)
+        if cli_args.validation_method: 
+            config.set('quality_loop.validation_method', cli_args.validation_method)
+            
+    return config
+```
 ```
 
 ### **2. Agent Communication Pattern**
@@ -763,6 +803,64 @@ Return JSON:
     "issues": ["list of specific issues"]
 }}
 """
+
+**Validation Methods:**
+
+The `QualityValidator` supports three modes:
+
+1.  **Coordinate (`_validate_coordinate`):**
+    *   Fastest.
+    *   Sends raw coordinates to LLM.
+    *   Good for checking logical consistency.
+
+2.  **Visual (`_validate_visual`):**
+    *   **Most Accurate.**
+    *   Draws the bounding boxes onto the image using PIL.
+    *   Sends the *annotated image* to the Vision LLM.
+    *   Prompt: "Do these red boxes accurately cover the dogs?"
+    *   Eliminates coordinate hallucination issues.
+
+3.  **Hybrid (`_validate_hybrid`):**
+    *   Runs both methods.
+    *   Requires both to pass.
+    *   Maximum rigor for high-stakes datasets.
+
+**Visual Helper:**
+```python
+def _draw_boxes_on_image(self, image_path, bboxes):
+    """Draws red boxes on a copy of the image for validation"""
+    with Image.open(image_path) as img:
+        draw = ImageDraw.Draw(img)
+        for box in bboxes:
+            # Convert normalized 0-1000 to pixels
+            # Draw rectangle with width=3
+            draw.rectangle(coords, outline="red", width=3)
+        return img
+```
+
+**Error Handling:**
+
+The quality loop includes robust error handling:
+
+1. **API Errors (429):** Caught and logged, refinement history records the error
+2. **Missing Feedback:** Safe access using `.get("feedback", "")` prevents KeyError
+3. **Failed Iterations:** Returns best annotation from successful iterations
+
+```python
+except Exception as e:
+    logger.error(f"Error in iteration {iteration}: {e}", exc_info=True)
+    refinement_history.append({
+        "iteration": iteration,
+        "error": str(e)
+        # Note: No "feedback" key when error occurs
+    })
+
+# Next iteration safely accesses feedback
+last_feedback = refinement_history[-1].get("feedback", "")
+if not last_feedback:
+    # Use default prompt without feedback
+```
+
 ```
 
 ---

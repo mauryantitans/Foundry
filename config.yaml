@@ -1,0 +1,59 @@
+# Foundry Configuration File
+# This file configures the SYSTEM SETTINGS.
+# You can run 'python pipeline.py --config config.yaml' to load these settings
+# and enter interactive mode to define your job.
+
+# ============================================================================
+# PIPELINE DEFAULTS
+# ============================================================================
+pipeline:
+  # Optional: Define a job here to auto-run (otherwise interactive mode starts)
+  # query: "bicycle"
+  # request: "find 5 images of cats"
+  
+  # Default count if not specified in interactive mode
+  count: 5
+  
+  # Mode: "standard" or "byod"
+  mode: "standard"
+  
+  # Image directory (only for BYOD mode)
+  image_dir: null
+
+# ============================================================================
+# QUALITY REFINEMENT LOOP (The "Smart" Part)
+# ============================================================================
+quality_loop:
+  # Enable iterative quality improvement?
+  enabled: true
+  
+  # Maximum refinement iterations (2-5 recommended)
+  max_iterations: 2
+  
+  # Validation method:
+  #   - "coordinate": Fast, checks bbox numbers
+  #   - "visual": Accurate, draws boxes for the model to see
+  #   - "hybrid": Best, uses both methods
+  validation_method: "coordinate"
+
+# ============================================================================
+# ANNOTATION SETTINGS
+# ============================================================================
+annotation:
+  # Number of parallel annotation workers
+  # Set to 1 to avoid Rate Limit errors (429) on free tier
+  num_workers: 1
+
+# ============================================================================
+# METRICS & LOGGING
+# ============================================================================
+metrics:
+  enabled: true
+  show_summary: true
+
+# ============================================================================
+# ADVANCED SETTINGS
+# ============================================================================
+advanced:
+  max_pipeline_loops: 5
+  log_level: "INFO"

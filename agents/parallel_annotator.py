@@ -13,16 +13,18 @@ class ParallelAnnotatorAgent:
     """
     Wrapper that creates parallel annotation workers for batch processing.
     """
-    def __init__(self, num_workers=3, curated_folder="data/curated"):
+    def __init__(self, num_workers=3, curated_folder="data/curated", quality_loop=None):
         """
         Initialize parallel annotator.
         
         Args:
             num_workers: Number of parallel annotation workers
             curated_folder: Folder containing curated images
+            quality_loop: Optional AnnotationRefinementLoop instance for quality improvement
         """
         self.num_workers = num_workers
         self.curated_folder = curated_folder
+        self.quality_loop = quality_loop
         self.workers = []
         
         # Create worker agents
@@ -53,6 +55,24 @@ class ParallelAnnotatorAgent:
         Returns:
             dict with annotation data or None if failed
         """
+        # If quality loop is enabled, use refinement process
+        if self.quality_loop:
+            try:
+                result = self.quality_loop.annotate_with_refinement(img_path, query)
+                if result:
+                    return {
+                        "filename": os.path.basename(img_path),
+                        "bboxes": result["bboxes"],
+                        "width": result["width"],
+                        "height": result["height"]
+                    }
+                else:
+                    return None
+            except Exception as e:
+                logger.error(f"Error in quality loop for {os.path.basename(img_path)}: {e}", exc_info=True)
+                return None
+        
+        # Standard annotation (no quality loop)
         worker = self.workers[worker_index % len(self.workers)]
         
         try:

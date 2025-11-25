@@ -72,6 +72,10 @@ Initial Annotation → Validation → Feedback → Re-annotation → Approval
 - Validates bounding box accuracy
 - Eliminates false positives
 - Provides detailed feedback for improvements
+- **New:** Supports 3 validation methods:
+  - **Coordinate:** Fast, checks bbox numbers
+  - **Visual:** Draws boxes on image for model to see (More Accurate)
+  - **Hybrid:** Combines both for maximum quality
 
 #### 📊 **Comprehensive Metrics**
 Track everything that matters:
@@ -112,11 +116,15 @@ python pipeline.py --query "dogs,cats,cars" --count 5
 ```
 
 #### 🛠️ **Configurable Options**
+- **New:** YAML Config File support (`config.yaml`)
 - Enable/disable metrics collection
 - Toggle quality refinement loop
+- Choose validation method (Coordinate/Visual/Hybrid)
 - Adjust iteration limits
 - Control parallel worker count
 - Customize output directories
+
+> **💡 Free Tier Optimization:** When using `visual` validation on the free tier (15 RPM), set `num_workers: 1` in `config.yaml` to avoid rate limit errors.
 
 ---
 
@@ -322,23 +330,38 @@ That's it! Foundry will automatically:
 
 ### **Interactive Mode (Recommended)**
 
-Simply run the pipeline and follow prompts:
+1. **Configure Settings:** Edit `config.yaml` to set your preferences (quality loop, visual validation, etc.).
+2. **Run Pipeline:**
+   ```bash
+   python pipeline.py --config config.yaml
+   ```
+3. **See Detailed Help:** The system will show you:
+   - **Mode 1:** Create new datasets (with examples)
+   - **Mode 2:** Annotate your own images (BYOD mode)
+   - **Features:** Multi-object detection, quality loop, COCO output
+   - **Examples:** Specific request formats you can use
 
-```bash
-python pipeline.py
+4. **Enter Your Request:**
+   ```
+   Your request: create 5 images of dogs
+   ```
+   Foundry will use your config settings to process the request!
+
+**Example Requests:**
+
+**Standard Mode (Create New Dataset):**
+```
+✅ create 5 images of dogs
+✅ get me 10 bicycle images
+✅ I need 15 images of cats and dogs  (multi-object)
+✅ find 20 car images
 ```
 
-**Example interactions:**
-
+**BYOD Mode (Annotate Your Images):**
 ```
-Your request: create 5 images of dogs
-→ Mines, curates, annotates 5 dog images
-
-Your request: create 10 images of cats and birds
-→ Multi-object detection for both cats and birds
-
-Your request: annotate pandas in C:\Users\me\panda_images
-→ Annotates your existing images (BYOD mode)
+✅ annotate dogs in C:\Users\me\my_photos
+✅ I have images at /home/user/pics, detect cats
+✅ detect bicycles in C:\images\bikes
 ```
 
 ### **Command Line Mode**
@@ -383,6 +406,7 @@ python pipeline.py --query "dogs" --count 10 --no-metrics
 
 ```bash
 Options:
+  --config PATH                Path to YAML config file (Recommended)
   --request TEXT               Natural language request
   --query TEXT                 Object query (e.g., 'cats' or 'dog,cat')
   --count INT                  Number of images to create
@@ -390,6 +414,7 @@ Options:
   
   --enable-quality-loop        Enable iterative quality refinement
   --quality-iterations INT     Max refinement iterations (default: 2)
+  --validation-method STR      Validation method: coordinate, visual, hybrid
   --show-metrics              Display detailed metrics summary
   --no-metrics                Disable metrics collection (faster)
   
@@ -525,7 +550,12 @@ python pipeline.py --query "bicycles" --count 2 --enable-quality-loop --quality-
 🎯 Refinement complete: 2 boxes after 3 iterations
 ```
 
-**Result:** Higher quality annotations with multiple iterations
+**Result:** Higher quality annotations with multiple iterations.
+
+**Validation Methods:**
+- **Visual (Recommended):** Draws boxes on the image so the validator "sees" the annotation.
+- **Coordinate:** Checks the numbers (faster).
+- **Hybrid:** Uses both for critical tasks.
 
 ---
 
@@ -798,6 +828,17 @@ Curator filtered all images in this batch
 
 **Solutions:**
 - Query might be too specific
+
+#### **4. Rate Limit Errors (429)**
+```
+429 Resource exhausted. Please try again later.
+```
+
+**Solutions:**
+- **Free Tier:** Set `num_workers: 1` in `config.yaml`
+- **Visual Validation:** Uses more API calls, reduce workers or switch to `coordinate` method
+- **Wait:** Free tier resets every minute (15 requests/minute limit)
+- **Upgrade:** Consider paid tier for higher limits (1000 RPM)
 - Try broader search terms
 - Check image quality from search results
 - Run with `--show-metrics` to see rejection reasons
