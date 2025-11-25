@@ -189,24 +189,24 @@ Parse Request ─────► query: "dogs,cats"
     │
     ↓
 ┌───────────────────────────────────────────────────────────┐
-│                    Execution Loop                          │
+│                    Execution Loop                         │
 │  (Repeats until target count reached or max loops)        │
-│                                                            │
+│                                                           │
 │  1. Mine Images ──────► Search Google, download 10 URLs   │
 │     └─ Deduplicate                                        │
-│                                                            │
+│                                                           │
 │  2. Curate ───────────► AI quality check, keep 7/10       │
 │     └─ Relevance filter                                   │
-│                                                            │
+│                                                           │
 │  3. Annotate ─────────► Parallel process 7 images         │
 │     ├─ Worker 1: images 1-2                               │
 │     ├─ Worker 2: images 3-5                               │
 │     └─ Worker 3: images 6-7                               │
-│                                                            │
+│                                                           │
 │  4. Quality Loop ─────► Validate & refine (if enabled)    │
 │     └─ Iterate until approved                             │
-│                                                            │
-│  5. Check Progress ───► Have 10 images? ─┬─ Yes → Done   │
+│                                                           │
+│  5. Check Progress ───► Have 10 images? ─┬─ Yes → Done    │
 │                                           └─ No → Repeat  │
 └───────────────────────────────────────────────────────────┘
     │
@@ -270,8 +270,8 @@ foundry/
 
 1. **Clone the repository:**
 ```bash
-git clone <repository-url>
-cd kaggle_capstone
+git clone https://github.com/mauryantitans/Foundry
+cd Foundry
 ```
 
 2. **Create virtual environment:**
