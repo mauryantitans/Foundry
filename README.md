@@ -289,18 +289,95 @@ For more troubleshooting, see [USAGE.md](docs/USAGE.md#troubleshooting)
 
 ## 🏗️ Architecture
 
-Foundry uses a multi-agent architecture:
+### **Multi-Agent System Design**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Main Agent                              │
+│                    (Orchestrator)                               │
+└────────┬────────────────────────────────────────────────────────┘
+         │
+         ├──► 🔍 Miner Agent ──────► Search & Download Images
+         │      ├─ Google Custom Search API
+         │      ├─ Perceptual hash deduplication
+         │      └─ Format conversion & validation
+         │
+         ├──► 🎯 Curator Agent ─────► Filter & Quality Check
+         │      ├─ Vision-based relevance check
+         │      ├─ Duplicate detection
+         │      └─ Quality assessment
+         │
+         ├──► 🏷️ Annotator Agent ───► Detect & Annotate Objects
+         │      │
+         │      ├──► Regular Mode: Single image annotation
+         │      │     └─ Fast, reliable bounding boxes
+         │      │
+         │      └──► Parallel Mode: Batch annotation (configurable workers)
+         │            ├─ Worker 1 ──► Image A
+         │            ├─ Worker 2 ──► Image B
+         │            └─ Worker 3 ──► Image C
+         │
+         ├──► 🔄 Quality Loop ──────► Refine Annotations (Optional)
+         │      ├─ Validate completeness
+         │      ├─ Check accuracy (coordinate/visual/hybrid)
+         │      ├─ Provide feedback
+         │      └─ Re-annotate if needed (max iterations)
+         │
+         └──► 📦 Engineer Agent ────► Export COCO Format
+                ├─ Category mapping
+                ├─ Coordinate transformation
+                └─ COCO JSON generation
+
+                         ↓
+                   
+              📊 Metrics Collector (tracks all stages)
+              ❌ Error Handler (manages failures)
+              📝 Logger (records everything)
+```
+
+### **Data Flow**
 
 ```
 User Request
+    │
+    ├─→ "create 10 images of dogs and cats"
+    │
     ↓
-Main Agent (Orchestrator)
+Parse Request ─────► query: "dogs,cats"
+                     count: 10
+    │
     ↓
-    ├─→ Miner Agent ────→ Search & Download
-    ├─→ Curator Agent ──→ Quality Filter
-    ├─→ Annotator Agent ─→ Detect Objects
-    ├─→ Quality Loop ────→ Refine (Optional)
-    └─→ Engineer Agent ──→ Export COCO
+┌───────────────────────────────────────────────────────────┐
+│                    Execution Loop                          │
+│  (Repeats until target count reached or max loops)        │
+│                                                            │
+│  1. Mine Images ──────► Search Google, download URLs      │
+│     └─ Deduplicate                                        │
+│                                                            │
+│  2. Curate ───────────► AI quality check, filter          │
+│     └─ Relevance filter                                   │
+│                                                            │
+│  3. Annotate ─────────► Process images                    │
+│     ├─ Single image: Direct annotation                    │
+│     └─ Multiple: Parallel workers                         │
+│                                                            │
+│  4. Quality Loop ─────► Validate & refine (if enabled)    │
+│     └─ Iterate until approved                             │
+│                                                            │
+│  5. Check Progress ───► Have enough? ─┬─ Yes → Done       │
+│                                        └─ No → Repeat      │
+└───────────────────────────────────────────────────────────┘
+    │
+    ↓
+Engineer ──────────► Transform to COCO format
+    │                ├─ Normalize coordinates
+    │                ├─ Map categories
+    │                └─ Generate JSON
+    ↓
+Save Output ───────► data/output/coco.json
+    │
+    ↓
+Display Metrics ───► Success rates, timing, errors
 ```
 
 For detailed architecture, see [knowledge_transfer.md](docs/knowledge_transfer.md)
