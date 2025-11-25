@@ -1,0 +1,17 @@
+pipeline:
+  query: "dog"
+  count: 2
+  mode: "standard"
+  image_dir: null
+
+quality_loop:
+  enabled: true
+  max_iterations: 2
+  validation_method: "coordinate"
+
+annotation:
+  num_workers: 1
+
+metrics:
+  enabled: true
+  show_summary: true

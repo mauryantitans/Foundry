@@ -1,0 +1,19 @@
+# Test Configuration for Foundry
+# This config enables quality loop with visual validation
+
+pipeline:
+  query: "bicycle"
+  count: 1
+  mode: "standard"
+
+quality_loop:
+  enabled: true
+  max_iterations: 2
+  validation_method: "visual"  # Test visual validation
+
+annotation:
+  num_workers: 3
+
+metrics:
+  enabled: true
+  show_summary: true
