@@ -6,7 +6,7 @@ from utils.logger import get_logger
 
 logger = get_logger("engineer")
 
-class EngineerAgent:
+class EngineerService:
     def __init__(self, output_folder="data/output", query="Object"):
         self.output_folder = output_folder
         self.query = query
@@ -137,7 +137,7 @@ class EngineerAgent:
         """Legacy method for batch processing."""
         logger.info(f"Formatting dataset for '{query}'...")
         # Create a new instance for batch processing
-        engineer = EngineerAgent(output_folder=self.output_folder, query=query)
+        engineer = EngineerService(output_folder=self.output_folder, query=query)
         
         for filename, data in annotations.items():
             engineer.process_item(filename, data)

@@ -4,13 +4,13 @@ Quality refinement loop for annotations using iterative validation.
 import os
 import json
 from PIL import Image
-from agents.base_agent import Agent
+from utils.gemini_client import get_gemini_model
 from utils.logger import get_logger
 
 logger = get_logger("quality_loop")
 
-class QualityValidator(Agent):
-    """Agent that validates annotation quality."""
+class ValidatorService:
+    """Service that validates annotation quality."""
     
     def __init__(self):
         instructions = (
@@ -26,7 +26,7 @@ class QualityValidator(Agent):
             ""
             "Be strict but fair. Only approve high-quality annotations."
         )
-        super().__init__(name="QualityValidator", instructions=instructions)
+        self.model = get_gemini_model(system_instruction=instructions)
         
     def _draw_boxes_on_image(self, image_path: str, bboxes: list) -> Image:
         """
@@ -245,7 +245,7 @@ class AnnotationRefinementLoop:
             validation_method: Validation method - "coordinate", "visual", or "hybrid"
         """
         self.annotator = annotator_agent
-        self.validator = QualityValidator()
+        self.validator = ValidatorService()
         self.max_iterations = max_iterations
         self.validation_method = validation_method
         

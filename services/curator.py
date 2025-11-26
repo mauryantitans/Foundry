@@ -2,12 +2,12 @@ import os
 import shutil
 from PIL import Image
 import imagehash
-from agents.base_agent import Agent
 from utils.logger import get_logger
+from utils.gemini_client import get_gemini_model
 
 logger = get_logger("curator")
 
-class CuratorAgent(Agent):
+class CuratorService:
     def __init__(self, raw_folder="data/raw", curated_folder="data/curated"):
         instructions = (
             "You are a Curator Agent. Your goal is to filter images to ensure they match the user's query. "
@@ -21,20 +21,23 @@ class CuratorAgent(Agent):
             "- Only accept images where the actual physical object can be clearly seen and identified. "
             "Answer strictly with 'YES' or 'NO'."
         )
-        super().__init__(name="CuratorAgent", instructions=instructions)
+        self.model = get_gemini_model(system_instruction=instructions)
         self.raw_folder = raw_folder
         self.curated_folder = curated_folder
         self.seen_hashes = []
 
-    def curate(self, query, image_paths, max_count=None):
+    def curate(self, query: str, image_paths: list[str], max_count: int = None) -> list[str]:
         """
-        Curates a list of image paths.
+        Curates a list of image paths by verifying they match the query.
         
         Args:
             query: The object query to match
             image_paths: List of image paths to curate
             max_count: Maximum number of images to curate (stops once reached). 
                       If None, curates all images.
+                      
+        Returns:
+            List of paths to images that passed curation.
         """
         logger.info(f"Filtering {len(image_paths)} images for '{query}'" + 
                     (f" (target: {max_count})" if max_count else ""))
@@ -98,3 +101,28 @@ class CuratorAgent(Agent):
                 
         logger.info(f"Finished. Kept {len(kept_images)} images")
         return kept_images
+
+    def as_adk_tool(self, state):
+        """
+        Returns a callable tool function for ADK integration.
+        
+        Args:
+            state: PipelineState object for tracking progress
+            
+        Returns:
+            Callable function matching the ADK tool signature
+        """
+        def curate_tool(images: list[str]) -> dict:
+            """
+            Curate images using the CuratorService.
+            """
+            logger.info(f"🔍 Curating {len(images)} images")
+            
+            curated = self.curate(state.query, images)
+            
+            state.record_curation(len(curated))
+            logger.info(f"✅ Curated {len(curated)} images")
+            
+            return {"status": "success", "images": curated, "count": len(curated)}
+            
+        return curate_tool

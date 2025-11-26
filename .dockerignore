@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data directories (don't copy to image, will be created fresh)
+data/raw/*
+data/curated/*
+data/output/*
+data/debug/*
+
+# Logs
+*.log
+logs/
+
+# Documentation (optional - comment out if you want docs in container)
+docs/*.md
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Testing
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+Course Notebooks/
+
+# Environment file (must be provided at runtime)
+.env
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml

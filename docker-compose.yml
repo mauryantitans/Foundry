@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  foundry:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: foundry:latest
+    container_name: foundry-pipeline
+    
+    # Environment variables from .env file
+    env_file:
+      - .env
+    
+    # Mount volumes for data persistence
+    volumes:
+      # Data directories
+      - ./data:/app/data
+      
+      # Config file (optional override)
+      - ./config.yaml:/app/config.yaml:ro
+      
+      # Output directory (for easy access)
+      - ./data/output:/app/data/output
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Override default command with your query
+    # Example usage: docker-compose run foundry --query "dog" --count 10
+    command: ["--help"]
+    
+    # Network mode
+    network_mode: bridge
+
+# Volumes for data persistence
+volumes:
+  foundry-data:
+    driver: local
+
+# Optional: Add a visualization service later
+# services:
+#   foundry-viz:
+#     build: ./viz
+#     ports:
+#       - "8080:8080"
+#     depends_on:
+#       - foundry

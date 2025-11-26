@@ -7,7 +7,7 @@ This module provides:
 - Error Handling: Structured error management
 """
 from utils.metrics import get_metrics_collector
-from agents.quality_loop import AnnotationRefinementLoop
+from services.quality_loop import AnnotationRefinementLoop
 from utils.error_handler import ErrorHandler, create_error_response, create_success_response
 from utils.logger import get_logger
 

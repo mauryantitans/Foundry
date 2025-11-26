@@ -1,179 +1,323 @@
-# 📘 Foundry Usage Guide
+# Foundry Usage Guide
 
-Comprehensive guide for using Foundry to create object detection datasets.
+**GitHub Repository:** https://github.com/mauryantitans/Foundry
+
+Complete guide to using Foundry for dataset creation.
 
 ---
 
 ## Table of Contents
 
-1. [Command Line Reference](#command-line-reference)
-2. [Configuration File Guide](#configuration-file-guide)
-3. [Interactive Mode](#interactive-mode)
-4. [Advanced Features](#advanced-features)
-5. [Troubleshooting](#troubleshooting)
-6. [Performance Tuning](#performance-tuning)
+- [Getting Started](#getting-started)
+- [Modes of Operation](#modes-of-operation)
+- [Command Line Reference](#command-line-reference)
+- [Configuration File](#configuration-file)
+- [Advanced Features](#advanced-features)
+- [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [API Rate Limits](#api-rate-limits)
 
 ---
 
-## Command Line Reference
+## Getting Started
 
-### All Available Options
+### First Run
 
+1. **Activate virtual environment:**
+```bash
+# Windows
+venv\Scripts\activate
+
+# Linux/Mac
+source venv/bin/activate
+```
+
+2. **Verify setup:**
+```bash
+python pipeline.py --help
+```
+
+3. **Run interactive mode:**
+```bash
+python pipeline.py
+```
+
+### Quick Examples
+
+```bash
+# Simple dataset
+python pipeline.py --query "dog" --count 5
+
+# Multi-object
+python pipeline.py --query "person,guitar" --count 10
+
+# With quality loop
+python pipeline.py --query "bicycle" --count 8 --enable-quality-loop
+
+# Your own images
+python pipeline.py --dir "C:\my_photos" --query "cat"
+```
+
+---
+
+## Modes of Operation
+
+### 1. Interactive Mode
+
+**Launch:**
+```bash
+python pipeline.py
+```
+
+**Features:**
+- Natural language understanding
+- Contextual help with examples
+- Two modes: Create New | Annotate Existing
+
+**Example Requests:**
+```
+✅ "create 5 images of dogs"
+✅ "get 10 red sports cars"
+✅ "I need 15 images of people holding guitars, annotate person and guitar"
+✅ "annotate dogs in C:\my_photos"
+```
+
+**How it works:**
+1. MainAgent parses your natural language request
+2. Extracts: search query, objects to annotate, image count
+3. Displays execution plan
+4. Runs pipeline
+5. Shows results and metrics
+
+---
+
+### 2. Command Line Mode
+
+**Basic Syntax:**
 ```bash
 python pipeline.py [OPTIONS]
-
-Options:
-  --config PATH                Path to YAML config file
-  --request TEXT               Natural language request
-  --query TEXT                 Object query (e.g., 'cats' or 'dog,cat')
-  --count INT                  Number of images to create
-  --dir PATH                   Directory with existing images (BYOD mode)
-  
-  --enable-quality-loop        Enable iterative quality refinement
-  --quality-iterations INT     Max refinement iterations (default: 2)
-  --validation-method STR      Validation method: coordinate, visual, hybrid
-  --show-metrics              Display detailed metrics summary
-  --no-metrics                Disable metrics collection (faster)
-  
-  --help                      Show this message and exit
 ```
 
-### Common Usage Patterns
+**Core Arguments:**
 
-#### Standard Mode (Create New Dataset)
+| Argument | Type | Description | Example |
+|----------|------|-------------|---------|
+| `--query` | TEXT | Object(s) to detect | `--query "dog"` |
+| `--count` | INT | Number of images | `--count 10` |
+| `--dir` | PATH | Directory for BYOD | `--dir "C:\images"` |
+| `--request` | TEXT | Natural language | `--request "5 dog images"` |
 
-**Basic:**
+**Examples:**
 ```bash
-python pipeline.py --query "cats" --count 10
-```
+# Single object
+python pipeline.py --query "dog" --count 10
 
-**With Quality Loop:**
-```bash
-python pipeline.py --query "bicycles" --count 5 --enable-quality-loop
-```
+# Multiple objects (comma-separated)
+python pipeline.py --query "dog,cat,person" --count 15
 
-**With Visual Validation:**
-```bash
-python pipeline.py --query "dogs" --count 8 \
-  --enable-quality-loop --validation-method visual
-```
+# BYOD mode
+python pipeline.py --dir "./photos" --query "elephant"
 
-**Multi-Object Detection:**
-```bash
-python pipeline.py --query "dogs,cats,cars" --count 15
-```
-
-**Maximum Quality:**
-```bash
-python pipeline.py --query "cars" --count 5 \
-  --enable-quality-loop --quality-iterations 3 \
-  --validation-method hybrid --show-metrics
-```
-
-#### BYOD Mode (Annotate Your Images)
-
-**Basic:**
-```bash
-python pipeline.py --dir "/path/to/images" --query "elephants"
-```
-
-**With Quality Loop:**
-```bash
-python pipeline.py --dir "C:\my_photos" --query "cats" \
-  --enable-quality-loop --validation-method visual
-```
-
-**Multi-Object:**
-```bash
-python pipeline.py --dir "/home/user/pics" --query "dog,cat,bird"
-```
-
-#### Using Config Files
-
-**Load config:**
-```bash
-python pipeline.py --config config.yaml
-```
-
-**Config + CLI override:**
-```bash
-python pipeline.py --config config.yaml --count 20
+# Natural language via CLI
+python pipeline.py --request "create 5 images of bicycles"
 ```
 
 ---
 
-## Configuration File Guide
+### 3. Config File Mode
 
-### Basic Structure
-
+**Create config.yaml:**
 ```yaml
 pipeline:
-  query: null          # Object to detect (null = interactive mode)
-  count: 5             # Number of images
-  mode: "standard"     # standard | byod
-  image_dir: null      # Path for BYOD mode
-
-quality_loop:
-  enabled: true        # Enable quality refinement
-  max_iterations: 2    # Max refinement attempts
-  validation_method: "visual"  # coordinate | visual | hybrid
-
-annotation:
-  num_workers: 1       # Parallel workers (1 for free tier)
-
-metrics:
-  enabled: true        # Track performance
-  show_summary: true   # Display summary at end
-```
-
-### Example Configurations
-
-#### High-Speed Mode (Free Tier)
-
-```yaml
-# fast_mode.yaml
-pipeline:
+  query: "dog"
   count: 10
+  mode: "standard"
 
-quality_loop:
-  enabled: false  # Skip quality loop for speed
-
-annotation:
-  num_workers: 1
-
-metrics:
-  enabled: false  # Skip metrics for speed
-```
-
-**Usage:** `python pipeline.py --config fast_mode.yaml --query "dogs"`
-
-#### High-Quality Mode
-
-```yaml
-# quality_mode.yaml
 quality_loop:
   enabled: true
-  max_iterations: 3
-  validation_method: "hybrid"  # Best accuracy
+  max_iterations: 2
+  validation_method: "coordinate"
 
 annotation:
-  num_workers: 1  # Still 1 for free tier
+  workers: 1
 
 metrics:
   enabled: true
   show_summary: true
 ```
 
-**Usage:** `python pipeline.py --config quality_mode.yaml --query "bicycles" --count 5`
+**Usage:**
+```bash
+# Use config file
+python pipeline.py --config config.yaml
 
-#### BYOD Template
+# Override specific values
+python pipeline.py --config config.yaml --count 20 --query "cat"
+```
+
+**Priority:** CLI args > config file > defaults
+
+---
+
+## Command Line Reference
+
+### Complete Options List
+
+```bash
+python pipeline.py [OPTIONS]
+```
+
+#### Pipeline Options
+
+**`--config PATH`**
+- Path to YAML configuration file
+- Example: `--config my_config.yaml`
+
+**`--request TEXT`**
+- Natural language request
+- Example: `--request "create 10 dog images"`
+
+**`--query TEXT`**
+- Object(s) to detect (comma-separated for multi-object)
+- Example: `--query "dog,cat"`
+
+**`--count INT`**
+- Number of images to collect
+- Default: 5
+- Example: `--count 15`
+
+**`--dir PATH`**
+- Directory path for BYOD mode
+- Example: `--dir "C:\Users\me\photos"`
+
+#### Advanced Options
+
+**`--enable-quality-loop`**
+- Enable quality refinement loop
+- Increases processing time but improves accuracy
+- Example: `python pipeline.py --query "dog" --count 5 --enable-quality-loop`
+
+**`--quality-iterations INT`**
+- Maximum quality loop iterations
+- Default: 2
+- Range: 1-5
+- Example: `--quality-iterations 3`
+
+**`--validation-method TEXT`**
+- Quality validation method
+- Choices: `coordinate` | `visual` | `hybrid`
+- Default: `coordinate`
+- Example: `--validation-method visual`
+
+**`--no-metrics`**
+- Disable metrics collection
+- Example: `python pipeline.py --query "dog" --count 5 --no-metrics`
+
+**`--show-metrics`**
+- Display detailed metrics summary at end
+- Example: `python pipeline.py --query "dog" --count 5 --show-metrics`
+
+### Usage Patterns
+
+**Quick Test:**
+```bash
+python pipeline.py --query "dog" --count 3 --no-metrics
+```
+
+**High Quality:**
+```bash
+python pipeline.py --query "bicycle" --count 10 \
+  --enable-quality-loop \
+  --quality-iterations 3 \
+  --validation-method hybrid \
+  --show-metrics
+```
+
+**Multi-Object:**
+```bash
+python pipeline.py --query "person,guitar,microphone" --count 15
+```
+
+**BYOD with Quality:**
+```bash
+python pipeline.py --dir "./my_images" --query "dog,cat" \
+  --enable-quality-loop \
+  --validation-method visual
+```
+
+---
+
+## Configuration File
+
+### Complete config.yaml Reference
 
 ```yaml
-# byod_template.yaml
+# Pipeline settings
+pipeline:
+  query: null              # Search query (null = use CLI/interactive)
+  count: 5                 # Number of images
+  mode: "standard"         # standard | byod
+  image_dir: null          # Directory for BYOD mode
+
+# Quality refinement loop
+quality_loop:
+  enabled: false           # Enable quality loop
+  max_iterations: 2        # Max retry attempts (1-5)
+  validation_method: "coordinate"  # coordinate | visual | hybrid
+
+# Annotation settings
+annotation:
+  workers: 1               # Parallel workers (1 for free tier)
+
+# Metrics tracking
+metrics:
+  enabled: true            # Collect performance metrics
+  show_summary: true       # Display summary at end
+```
+
+### Configuration Examples
+
+**Speed-Optimized (Free Tier):**
+```yaml
+pipeline:
+  query: "dog"
+  count: 10
+
+quality_loop:
+  enabled: false
+
+annotation:
+  workers: 1
+
+metrics:
+  enabled: true
+```
+
+**Quality-Optimized:**
+```yaml
+pipeline:
+  query: "bicycle"
+  count: 20
+
+quality_loop:
+  enabled: true
+  max_iterations: 3
+  validation_method: "hybrid"
+
+annotation:
+  workers: 1
+
+metrics:
+  enabled: true
+  show_summary: true
+```
+
+**BYOD Mode:**
+```yaml
 pipeline:
   mode: "byod"
-  image_dir: "C:/my_images"  # Change this
-  query: "dog"               # Change this
+  image_dir: "C:/Users/me/photos"
+  query: "dog,cat"
 
 quality_loop:
   enabled: true
@@ -183,136 +327,156 @@ metrics:
   enabled: true
 ```
 
-**Usage:** `python pipeline.py --config byod_template.yaml`
-
----
-
-## Interactive Mode
-
-### How It Works
-
-1. **Run without arguments:**
-   ```bash
-   python pipeline.py --config config.yaml
-   ```
-
-2. **See detailed help:**
-   - MODE 1: Create new datasets
-   - MODE 2: Annotate your own images (BYOD)
-   - Feature highlights
-   - Example requests
-
-3. **Enter your request:**
-   ```
-   Your request: create 5 images of dogs
-   ```
-
-4. **System processes automatically**
-
-### Supported Request Formats
-
-#### Standard Mode Requests
-
-```
-✅ "create 5 images of dogs"
-✅ "get me 10 bicycle images"
-✅ "I need 15 images of cats and dogs"
-✅ "find 20 car images"
-✅ "search for 8 images of birds"
-```
-
-#### BYOD Mode Requests
-
-```
-✅ "annotate dogs in C:\Users\me\my_photos"
-✅ "I have images at /home/user/pics, detect cats"
-✅ "detect bicycles in C:\images\bikes"
-✅ "label cars in /path/to/folder"
-```
-
-### Tips for Interactive Mode
-
-- Be specific about the count: "5 images" not just "images"
-- For BYOD, mention the full path clearly
-- Multi-object: "cats and dogs" or "cats, dogs"
-- The system uses AI to parse your request, so natural language works!
-
 ---
 
 ## Advanced Features
-
-### Quality Refinement Loop
-
-The quality loop iteratively improves annotations through validation and feedback.
-
-**How it works:**
-```
-Initial Annotation → Validation → Feedback → Re-annotation → Approval
-         ↑                                                      ↓
-         └──────────────── (Repeat up to N times) ─────────────┘
-```
-
-**Validation Methods:**
-
-1. **Coordinate Validation (Fast)**
-   - Checks bbox numbers and logical consistency
-   - Best for: Simple objects, speed priority
-   - API calls: Low
-
-2. **Visual Validation (Accurate)**
-   - Draws boxes on image for model to see
-   - Best for: Complex scenes, accuracy priority
-   - API calls: Medium
-
-3. **Hybrid Validation (Best)**
-   - Runs both coordinate and visual
-   - Best for: Critical datasets, maximum quality
-   - API calls: High
-
-**Example output:**
-```
-🔄 Starting refinement loop for image.jpg
-   ✓ Iteration 1: 1 boxes, Status: NEEDS_IMPROVEMENT
-     Feedback: "Second bicycle in background not detected"
-   ✓ Iteration 2: 2 boxes, Status: APPROVED
-✅ Annotation approved after 2 iteration(s)
-```
 
 ### Multi-Object Detection
 
 Detect multiple object types in the same images.
 
-**Usage:**
+**Command Line:**
 ```bash
-python pipeline.py --query "dogs,cats,birds" --count 10
+python pipeline.py --query "person,guitar" --count 10
 ```
 
-**COCO Output:**
+**Natural Language:**
+```
+"I need 15 images of people holding guitars, annotate person and guitar"
+```
+
+**How it works:**
+1. **Mining**: Searches for scenes containing all objects
+   - Query optimization: "person holding guitar"
+2. **Annotation**: Creates separate bounding boxes
+   - Person boxes: `category_id: 1`
+   - Guitar boxes: `category_id: 2`
+
+**Output:**
 ```json
 {
   "categories": [
-    {"id": 1, "name": "dog"},
-    {"id": 2, "name": "cat"},
-    {"id": 3, "name": "bird"}
+    {"id": 1, "name": "person"},
+    {"id": 2, "name": "guitar"}
   ],
   "annotations": [
-    {"category_id": 1, "bbox": [...]},  // dog
-    {"category_id": 2, "bbox": [...]},  // cat
-    {"category_id": 3, "bbox": [...]}   // bird
+    {"category_id": 1, "bbox": [...], "image_id": 1},  // person
+    {"category_id": 2, "bbox": [...], "image_id": 1}   // guitar
   ]
 }
 ```
 
-### Metrics Collection
+---
 
-Track detailed performance metrics.
+### Quality Refinement Loop
+
+Automatically improve annotation quality through validation and retry.
 
 **Enable:**
 ```bash
-python pipeline.py --query "dogs" --count 5 --show-metrics
+python pipeline.py --query "dog" --count 10 --enable-quality-loop
 ```
 
-**Output:**
+**How it works:**
+1. Generate initial annotation
+2. Validate annotation quality
+3. If validation fails → retry with improved prompt
+4. Repeat up to `max_iterations` times
+5. Use best result
+
+**Validation Methods:**
+
+**Coordinate Validation** (Fast):
+- Checks bbox coordinates are valid (0-1000 range)
+- Ensures proper format `[ymin, xmin, ymax, xmax]`
+- No additional API calls
+- ✅ Best for: Free tier, simple objects
+
+**Visual Validation** (Accurate):
+- Uses vision AI to verify annotation correctness
+- Checks object actually exists at bbox location
+- Additional API calls per validation
+- ✅ Best for: Critical datasets, complex scenes
+
+**Hybrid Validation** (Comprehensive):
+- Combines coordinate + visual validation
+- Most API calls, highest quality
+- ✅ Best for: Production datasets, multiple objects
+
+**Configuration:**
+```yaml
+quality_loop:
+  enabled: true
+  max_iterations: 3              # Retry up to 3 times
+  validation_method: "hybrid"    # Use both methods
+```
+
+---
+
+### BYOD Mode (Bring Your Own Data)
+
+Annotate your own images without web search.
+
+**Usage:**
+```bash
+python pipeline.py --dir "C:\my_photos" --query "dog"
+```
+
+**Features:**
+- No image mining (uses your images)
+- Full annotation pipeline
+- Quality loop support
+- COCO format export
+
+**Directory Structure:**
+```
+my_photos/
+├── image1.jpg
+├── image2.png
+├── photo3.jpeg
+└── ...
+```
+
+**Supported formats:** JPG, JPEG, PNG
+
+**Example with multi-object:**
+```bash
+python pipeline.py --dir "./photos" --query "dog,cat,person" \
+  --enable-quality-loop
+```
+
+---
+
+### Metrics & Monitoring
+
+Track pipeline performance in real-time.
+
+**Enable:**
+```bash
+python pipeline.py --query "dog" --count 10 --show-metrics
+```
+
+**Tracked Metrics:**
+
+**Overview:**
+- Pipeline runs
+- Total images mined, curated, annotated, saved
+
+**Success Rates:**
+- Curation success rate (% kept)
+- Annotation success rate (% successful)
+
+**Timings:**
+- Pipeline total time
+- Mining time
+- Curation time
+- Annotation time
+- Engineering time
+
+**Errors:**
+- Error counts by type and stage
+
+**Example Output:**
 ```
 ============================================================
 📊 PIPELINE METRICS SUMMARY
@@ -320,20 +484,23 @@ python pipeline.py --query "dogs" --count 5 --show-metrics
 
 📈 Overview:
    Pipeline Runs: 1
-   Total Images Mined: 5
-   Total Images Curated: 5
-   Total Images Annotated: 5
-   Total Images Saved: 5
+   Total Images Mined: 10
+   Total Images Curated: 8
+   Total Images Annotated: 8
+   Total Images Saved: 8
 
 ✅ Success Rates:
-   Curation Avg: 100.0%
+   Curation Avg: 80.0%
    Annotation Avg: 100.0%
 
 ⏱️  Average Timings:
-   Mining: 3.21s
-   Curation: 12.45s
-   Annotation: 8.67s
-   Pipeline Total: 24.33s
+   Pipeline Total: 45.23s (1 runs)
+   Mining: 8.12s (1 runs)
+   Curation: 15.34s (1 runs)
+   Annotation: 18.56s (1 runs)
+   Engineering: 0.05s (1 runs)
+
+✅ No errors recorded
 ============================================================
 ```
 
@@ -345,193 +512,163 @@ python pipeline.py --query "dogs" --count 5 --show-metrics
 
 **Error:**
 ```
-429 Resource exhausted. Please try again later.
+ERROR: 429 Resource exhausted
+Quota exceeded for metric: generate_content_free_tier_requests
 ```
-
-**Cause:** Exceeded Gemini API free tier limit (15 requests/minute)
 
 **Solutions:**
 
 1. **Reduce workers:**
-   ```yaml
-   annotation:
-     num_workers: 1  # Down from 3
-   ```
+```yaml
+annotation:
+  workers: 1  # Essential for free tier
+```
 
 2. **Use coordinate validation:**
-   ```yaml
-   quality_loop:
-     validation_method: "coordinate"  # Instead of visual
-   ```
+```yaml
+quality_loop:
+  validation_method: "coordinate"  # Fewer API calls
+```
 
-3. **Wait between runs:**
-   - Free tier resets every 60 seconds
-   - Wait 1 minute before next run
+3. **Disable quality loop temporarily:**
+```bash
+python pipeline.py --query "dog" --count 5
+# Don't use --enable-quality-loop
+```
 
-4. **Disable quality loop temporarily:**
-   ```bash
-   python pipeline.py --query "dogs" --count 5  # No --enable-quality-loop
-   ```
+4. **Wait between runs:**
+```bash
+python pipeline.py --query "dog" --count 5
+sleep 60  # Wait 1 minute
+python pipeline.py --query "cat" --count 5
+```
 
-5. **Upgrade to paid tier:**
-   - Paid tier: 1000 RPM (vs 15 RPM free)
-   - [Pricing info](https://ai.google.dev/pricing)
+5. **Check current usage:**
+- Visit [Google AI Studio](https://ai.google.dev/)
+- Check "Quota" section
+- Free tier: 15 requests/minute
+- Paid tier: 1000+ requests/minute
+
+---
 
 ### No Images Found
 
 **Error:**
 ```
-Miner returned no images
+Mining completed: 0 images saved
 ```
 
-**Solutions:**
+**Checklist:**
 
-1. **Check API keys:**
-   ```bash
-   # Verify .env file exists and has correct keys
-   cat .env
-   ```
+1. **Verify API keys in `.env`:**
+```env
+GEMINI_API_KEY=AIza...
+GOOGLE_SEARCH_API_KEY=AIza...
+GOOGLE_SEARCH_CX=abc123...
+```
 
-2. **Verify Custom Search setup:**
-   - Check `GOOGLE_SEARCH_CX` is correct
-   - Verify search engine is configured to search entire web
-   - [Setup guide](https://programmablesearchengine.google.com/)
+2. **Check Custom Search API quota:**
+- Visit [Google Cloud Console](https://console.cloud.google.com/apis/api/customsearch.googleapis.com/)
+- Free tier: 100 queries/day
+- Check usage in "Metrics" tab
 
-3. **Check API quotas:**
-   - [Google Cloud Console](https://console.cloud.google.com/)
-   - Custom Search API: 100 queries/day free
+3. **Test search directly:**
+```bash
+curl "https://www.googleapis.com/customsearch/v1?q=dog&key=YOUR_API_KEY&cx=YOUR_CX"
+```
 
 4. **Try different query:**
-   ```bash
-   # More specific
-   python pipeline.py --query "golden retriever dog" --count 5
-   ```
+```bash
+# Instead of:
+python pipeline.py --query "small brown dog in park"
+
+# Try:
+python pipeline.py --query "dog"
+```
+
+---
 
 ### All Images Filtered
 
 **Error:**
 ```
-Curator filtered all images in this batch
+Curated: 0 images
+No images passed curation
 ```
 
-**Cause:** Images don't contain the target object or are low quality
+**Causes & Solutions:**
 
-**Solutions:**
+1. **Search returned irrelevant images:**
+   - Use more specific query
+   - Check Google Custom Search Engine settings
 
-1. **Use broader terms:**
-   ```bash
-   # Instead of "golden retriever puppy"
-   python pipeline.py --query "dog" --count 10
-   ```
+2. **Images too low quality:**
+   - Source better images
+   - Adjust search query
 
-2. **Check search results manually:**
-   - Look at images in `data/raw/`
-   - Verify they contain the object
+3. **Debug with logs:**
+```bash
+python pipeline.py --query "dog" --count 5 --show-metrics 2>&1 | tee debug.log
+```
+Review rejection reasons in `debug.log`
 
-3. **Review curation logs:**
-   ```bash
-   python pipeline.py --query "cats" --count 5 --show-metrics
-   # Check why images were rejected
-   ```
+---
 
-### AttributeError or KeyError
+### JSON Parsing Failures
 
 **Error:**
 ```
-AttributeError: 'list' object has no attribute 'items'
-KeyError: 'feedback'
+WARNING: All JSON parsing strategies failed
 ```
 
-**Cause:** Bug in older versions (fixed in latest)
+**Built-in Solutions:**
+Foundry has 5-strategy fallback parser that automatically:
+1. Direct JSON parse
+2. Remove markdown fences
+3. Fix common issues (quotes, commas)
+4. Extract JSON arrays with regex
+5. Reconstruct from bbox patterns
 
-**Solution:**
+**If persistent:**
+1. **Check Gemini API status:**
+   - Visit [Google API Status](https://status.cloud.google.com/)
+
+2. **Try simpler query:**
 ```bash
-# Pull latest code
-git pull origin main
+# Instead of:
+python pipeline.py --query "dog,cat,person,bicycle" --count 10
 
-# Or verify you have the fixes in:
-# - agents/main_agent.py (line 153)
-# - agents/quality_loop.py (line 281)
+# Try:
+python pipeline.py --query "dog" --count 5
 ```
 
-### Visualization Fails
-
-**Error:**
-```
-FileNotFoundError: data/output/coco.json
-```
-
-**Cause:** No successful pipeline run yet
-
-**Solution:**
+3. **Enable retry:**
 ```bash
-# Run pipeline first
-python pipeline.py --query "dogs" --count 2
-
-# Then visualize
-python visualize_results.py
+python pipeline.py --query "dog" --count 5 --enable-quality-loop
+# Retry logic activates automatically
 ```
 
 ---
 
-## Performance Tuning
+### Module Not Found
 
-### Speed vs Quality Trade-offs
-
-| Configuration | Speed | Quality | Use Case |
-|--------------|-------|---------|----------|
-| No quality loop | Fastest | Good | Quick prototyping |
-| Coordinate validation | Fast | Better | Production (balanced) |
-| Visual validation | Medium | Best | High-accuracy needs |
-| Hybrid validation | Slowest | Maximum | Critical datasets |
-
-### Optimal Configurations
-
-#### Free Tier (15 RPM)
-
-```yaml
-annotation:
-  num_workers: 1
-
-quality_loop:
-  enabled: true
-  max_iterations: 2
-  validation_method: "coordinate"
-
-metrics:
-  enabled: true
+**Error:**
+```
+ModuleNotFoundError: No module named 'google.generativeai'
 ```
 
-**Performance:** ~15s for 2 images
+**Solution:**
+```bash
+# Activate virtual environment
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
 
-#### Paid Tier (1000 RPM)
+# Verify (should see "(venv)" prefix)
+python pipeline.py --help
 
-```yaml
-annotation:
-  num_workers: 3
-
-quality_loop:
-  enabled: true
-  max_iterations: 3
-  validation_method: "visual"
-
-metrics:
-  enabled: true
+# If still fails, reinstall
+pip install --upgrade -r requirements.txt
 ```
-
-**Performance:** ~20s for 10 images
-
-### Benchmarks
-
-Based on testing with 2-image datasets:
-
-| Mode | Workers | Validation | Time | API Calls |
-|------|---------|------------|------|-----------|
-| Standard | 1 | None | ~10s | ~8 |
-| Standard | 1 | Coordinate | ~15s | ~12 |
-| Standard | 1 | Visual | ~17s | ~16 |
-| BYOD | 1 | Coordinate | ~4s | ~6 |
-| BYOD | 1 | Visual | ~5s | ~10 |
 
 ---
 
@@ -539,32 +676,178 @@ Based on testing with 2-image datasets:
 
 ### For Free Tier Users
 
-1. **Always use `num_workers: 1`**
-2. **Start with coordinate validation**
-3. **Use visual validation only when needed**
-4. **Batch your work** (wait 60s between runs)
-5. **Test with small counts first** (2-5 images)
+**Optimal Configuration:**
+```yaml
+quality_loop:
+  enabled: true
+  max_iterations: 2              # Balance quality/speed
+  validation_method: "coordinate" # Fewest API calls
 
-### For Production Use
+annotation:
+  workers: 1                      # Prevent rate limits
 
-1. **Use config files** for reproducibility
-2. **Enable metrics** to track performance
-3. **Use visual validation** for accuracy
-4. **Test with small batches** before large runs
-5. **Keep backups** of successful configs
+metrics:
+  enabled: true
+```
 
-### For Development
-
-1. **Disable quality loop** for faster iteration
-2. **Use small counts** (1-2 images)
-3. **Enable metrics** to debug issues
-4. **Check logs** in console output
+**Workflow:**
+1. Test with small counts first: `--count 3`
+2. Wait 60s between runs
+3. Use coordinate validation
+4. Monitor rate limit warnings
 
 ---
 
-## Next Steps
+### For Production Datasets
 
-- See [EXAMPLES.md](EXAMPLES.md) for real-world use cases
-- See [knowledge_transfer.md](knowledge_transfer.md) for technical details
-- See [test_report.md](test_report.md) for integration test results
-- Check [../README.md](../README.md) for quick reference
+**Optimal Configuration:**
+```yaml
+quality_loop:
+  enabled: true
+  max_iterations: 3
+  validation_method: "hybrid"
+
+annotation:
+  workers: 3  # Parallel processing
+
+metrics:
+  enabled: true
+  show_summary: true
+```
+
+**Workflow:**
+1. Use specific queries
+2. Enable quality loop
+3. Review metrics after each run
+4. Validate output with visualizer
+
+---
+
+### For Multi-Object Datasets
+
+**Tips:**
+1. **Use natural language for better search:**
+```bash
+python pipeline.py
+> "15 images of people holding guitars, annotate person and guitar"
+```
+
+2. **Verify separate categories:**
+```bash
+python -c "import json; print(json.load(open('data/output/coco.json'))['categories'])"
+```
+
+3. **Check annotation distribution:**
+```bash
+python visualize_results.py  # Verify boxes are separate
+```
+
+---
+
+### For BYOD Mode
+
+**Preparation:**
+1. Organize images in one directory
+2. Use consistent image format (JPG recommended)
+3. Remove corrupt/tiny images
+
+**Best Results:**
+```bash
+# Clear, specific query
+python pipeline.py --dir "./photos" --query "dog" \
+  --enable-quality-loop \
+  --validation-method visual
+
+# Multi-object in own images
+python pipeline.py --dir "./photos" --query "dog,cat" \
+  --enable-quality-loop
+```
+
+---
+
+## API Rate Limits
+
+### Gemini API Limits
+
+**Free Tier:**
+- 15 requests per minute (RPM)
+- 1,500 requests per day (RPD)
+- 1 million tokens per minute (TPM)
+
+**Paid Tier:**
+- 1,000+ RPM (varies by plan)
+- Higher daily limits
+- Priority support
+
+### Google Custom Search API Limits
+
+**Free Tier:**
+- 100 queries per day
+- Cannot be increased
+
+**Paid Tier:**
+- $5 per 1,000 queries
+- Up to 10,000 queries/day
+
+### Managing Limits
+
+**Track Usage:**
+```bash
+# Monitor API calls in logs
+python pipeline.py --query "dog" --count 5 --show-metrics 2>&1 | grep "API"
+```
+
+**Optimize Calls:**
+1. Use `coordinate` validation (no extra calls)
+2. Set `workers: 1` (sequential processing)
+3. Disable quality loop for testing
+4. Batch similar queries together
+
+**Example Calculation:**
+```
+Standard Run (10 images, no quality loop):
+- Mining: 1 call
+- Curation: 10 calls (1 per image)
+- Annotation: 10 calls (1 per image)
+Total: ~21 calls
+
+With Quality Loop (coordinate):
+- Same as above (coordinate doesn't add calls)
+Total: ~21 calls
+
+With Quality Loop (visual):
+- Mining: 1 call
+- Curation: 10 calls
+- Annotation: 10 calls
+- Validation: 10 calls (visual check)
+- Retries: up to 10 calls (if needed)
+Total: ~41 calls max
+```
+
+---
+
+## Getting Help
+
+**Logs:**
+```bash
+# View detailed logs
+python pipeline.py --query "dog" --count 5 2>&1 | tee run.log
+```
+
+**Debug Mode:**
+```python
+# Edit utils/logger.py
+# Set level to DEBUG
+logger.setLevel(logging.DEBUG)
+```
+
+**Community:**
+- GitHub Issues: [Report bugs](https://github.com/mauryantitans/Foundry/issues)
+- GitHub Discussions: [Ask questions](https://github.com/mauryantitans/Foundry/discussions)
+- Documentation: [Full docs](../README.md)
+
+---
+
+**Need more examples?** See [EXAMPLES.md](EXAMPLES.md)
+
+**Technical details?** See [knowledge_transfer.md](knowledge_transfer.md)

@@ -1,641 +1,727 @@
-# 💡 Foundry Examples & Use Cases
+# Foundry Examples
 
-Real-world examples and practical use cases for Foundry.
+**GitHub Repository:** https://github.com/mauryantitans/Foundry
+
+Real-world examples and use cases for Foundry dataset creation.
 
 ---
 
 ## Table of Contents
 
-1. [Quick Examples](#quick-examples)
-2. [Real-World Use Cases](#real-world-use-cases)
-3. [Workflow Examples](#workflow-examples)
-4. [Integration Examples](#integration-examples)
+- [Basic Examples](#basic-examples)
+- [Multi-Object Detection](#multi-object-detection)
+- [BYOD (Bring Your Own Data)](#byod-bring-your-own-data)
+- [Quality Optimization](#quality-optimization)
+- [Production Workflows](#production-workflows)
+- [Advanced Use Cases](#advanced-use-cases)
 
 ---
 
-## Quick Examples
+## Basic Examples
 
-### Example 1: Simple Dataset Creation
+### Example 1: Simple Dog Detector
 
-**Goal:** Create a small dataset of tables for testing
-
-```bash
-python pipeline.py --query "tables" --count 5 --show-metrics
-```
-
-**Output:**
-```
-📋 Standard Mode: Creating dataset with 5 images of 'tables'
-
-2025-11-25 14:30:15 - Mining completed: 5 images saved
-2025-11-25 14:30:28 - Finished. Kept 5 images
-2025-11-25 14:30:35 - Parallel annotation completed: 5/5 images annotated
-2025-11-25 14:30:36 - Dataset saved successfully
-
-============================================================
-📊 PIPELINE METRICS SUMMARY
-============================================================
-
-📈 Overview:
-   Total Images Saved: 5
-   Curation Success: 100.0%
-   Annotation Success: 100.0%
-
-⏱️  Total Time: 24.33s
-============================================================
-```
-
-**Result:** `data/output/coco.json` with 5 annotated table images
-
----
-
-### Example 2: Multi-Object Detection
-
-**Goal:** Detect both dogs and cats in images
+**Goal:** Create a basic dog detection dataset
 
 ```bash
-python pipeline.py --query "dogs,cats" --count 3 \
-  --enable-quality-loop --show-metrics
+python pipeline.py --query "dog" --count 10
 ```
 
 **What happens:**
-1. Searches for images containing dogs or cats
-2. Each image may contain one or both object types
-3. Separate bounding boxes for each object
-4. Quality validation ensures both are detected
-5. COCO format with 2 categories
+1. Mines 20 dog images (2x for filtering)
+2. Curates for relevance and quality
+3. Annotates with bounding boxes
+4. Exports to COCO format
 
-**Sample COCO Output:**
+**Expected output:**
+```
+✅ Images Collected: 10/10
+✅ Dataset saved to: data/output/coco.json
+📊 Success Rate: 100%
+```
+
+**COCO structure:**
+```json
+{
+  "categories": [{"id": 1, "name": "dog"}],
+  "images": [10 images],
+  "annotations": [10+ bounding boxes]
+}
+```
+
+---
+
+### Example 2: Bicycle Dataset with Quality Loop
+
+**Goal:** High-quality bicycle detection dataset
+
+```bash
+python pipeline.py --query "bicycle" --count 15 \
+  --enable-quality-loop \
+  --validation-method visual \
+  --show-metrics
+```
+
+**Features used:**
+- Quality refinement loop
+- Visual validation (more accurate)
+- Metrics tracking
+
+**Output:**
+```
+✅ Images Collected: 15/15
+✅ Annotation Success Rate: 93.3%
+⏱️  Total Time: 2m 15s
+```
+
+**When to use:**
+- Production datasets
+- Complex objects
+- Need high accuracy
+
+---
+
+### Example 3: Quick Test Dataset
+
+**Goal:** Fast dataset for testing/prototyping
+
+```bash
+python pipeline.py --query "cat" --count 3 --no-metrics
+```
+
+**Optimizations:**
+- Small count (3 images)
+- No metrics overhead
+- No quality loop
+
+**Output time:** ~30 seconds
+
+**When to use:**
+- Testing pipeline
+- Learning the system
+- Quick experiments
+
+---
+
+## Multi-Object Detection
+
+### Example 4: Person with Guitar
+
+**Goal:** Detect both people and guitars in images
+
+**Method 1: Command Line**
+```bash
+python pipeline.py --query "person,guitar" --count 10
+```
+
+**Method 2: Natural Language**
+```bash
+python pipeline.py
+
+> Input: "I need 10 images of people holding guitars, annotate person and guitar"
+```
+
+**What happens:**
+1. **Mining**: Searches "person holding guitar"
+2. **Curation**: Filters images with both objects
+3. **Annotation**: Creates **separate boxes**:
+   - All persons → category_id: 1
+   - All guitars → category_id: 2
+
+**Output COCO:**
 ```json
 {
   "categories": [
-    {"id": 1, "name": "dog"},
-    {"id": 2, "name": "cat"}
+    {"id": 1, "name": "person"},
+    {"id": 2, "name": "guitar"}
   ],
   "annotations": [
     {
       "id": 1,
       "image_id": 1,
-      "category_id": 1,
-      "bbox": [120, 80, 200, 150]
+      "category_id": 1,  // person
+      "bbox": [100, 50, 200, 300]
     },
     {
       "id": 2,
       "image_id": 1,
-      "category_id": 2,
-      "bbox": [350, 100, 180, 140]
+      "category_id": 2,  // guitar
+      "bbox": [150, 200, 100, 150]
     }
+  ]
+}
+```
+
+**Visualization:**
+```
+Image 1:
+┌─────────────────────────┐
+│  [Person Box]           │
+│     [Guitar Box]        │
+│                         │
+│  Separate annotations!  │
+└─────────────────────────┘
+```
+
+---
+
+### Example 5: Street Scene (Dog, Cat, Person)
+
+**Goal:** Urban scene with multiple object types
+
+```bash
+python pipeline.py --query "dog,cat,person" --count 20
+```
+
+**Search strategy:**
+- Finds images containing any/all of these objects
+- Each object type gets separate category
+- Multiple instances per image supported
+
+**Example annotation:**
+```
+Image: "person_walking_dog_past_cat.jpg"
+Annotations:
+  - person: [bbox1]
+  - dog: [bbox2]
+  - cat: [bbox3]
+```
+
+**When to use:**
+- Complex scene understanding
+- Multiple object relationships
+- Rich training data
+
+---
+
+### Example 6: Sports Equipment
+
+**Goal:** Detect various sports equipment
+
+```bash
+python pipeline.py --query "basketball,soccer_ball,tennis_racket" --count 25 \
+  --enable-quality-loop
+```
+
+**Tip:** Use underscores for multi-word objects
+- ✅ `soccer_ball`
+- ❌ `soccer ball` (might be split)
+
+**Expected categories:**
+```json
+{
+  "categories": [
+    {"id": 1, "name": "basketball"},
+    {"id": 2, "name": "soccer_ball"},
+    {"id": 3, "name": "tennis_racket"}
   ]
 }
 ```
 
 ---
 
-### Example 3: BYOD Mode (Your Own Images)
+## BYOD (Bring Your Own Data)
 
-**Goal:** Annotate your personal photo collection
+### Example 7: Annotate Personal Photos
 
-```bash
-python pipeline.py --dir "C:\Users\me\my_pandas" \
-  --query "panda" --show-metrics
+**Scenario:** You have 50 dog photos, need annotations
+
+**Directory structure:**
+```
+my_dog_photos/
+├── IMG_0001.jpg
+├── IMG_0002.jpg
+├── IMG_0003.jpg
+└── ...
 ```
 
-**Use case:** You have your own images and just want annotations
+**Command:**
+```bash
+python pipeline.py --dir "C:\Users\me\my_dog_photos" --query "dog"
+```
 
-**Process:**
-1. Skips mining and curation
-2. Directly annotates all images in the directory
-3. Detects pandas and generates bounding boxes
-4. Exports to COCO format
+**What happens:**
+1. Skips mining (uses your images)
+2. Skips curation (trusts your images)
+3. Annotates all images
+4. Exports COCO format
 
-**Benefits:**
-- No web search needed
-- Works with private/proprietary images
-- Fast annotation-only workflow (4-5s per image)
+**Output:**
+```
+✅ Annotated: 50/50 images
+✅ Success Rate: 100%
+📊 Output: data/output/coco.json
+```
 
 ---
 
-### Example 4: Quality Refinement in Action
+### Example 8: BYOD with Multi-Object
 
-**Goal:** Get highest quality annotations
+**Scenario:** Photos containing both cats and dogs
 
 ```bash
-python pipeline.py --query "bicycles" --count 2 \
-  --enable-quality-loop --quality-iterations 3 \
+python pipeline.py --dir "./pet_photos" --query "dog,cat" \
+  --enable-quality-loop \
   --validation-method visual
 ```
 
-**Console Output:**
-```
-🔄 Starting refinement loop for bicycle_001.jpg
-   Iteration 1/3
-   ✓ Iteration 1: 1 boxes, Status: NEEDS_IMPROVEMENT
-     Feedback: "Second bicycle in background not detected"
-   
-   Iteration 2/3
-   ✓ Iteration 2: 2 boxes, Status: NEEDS_IMPROVEMENT
-     Feedback: "Bounding box too loose on left bicycle"
-   
-   Iteration 3/3
-   ✓ Iteration 3: 2 boxes, Status: APPROVED
-✅ Annotation approved after 3 iteration(s)
-🎯 Refinement complete: 2 boxes after 3 iterations
-```
+**Features:**
+- Detects both object types
+- Quality validation
+- Separate categories for each pet
 
-**Result:** Higher quality annotations with multiple iterations
+**Use case:**
+- Pet recognition apps
+- Animal shelter databases
+- Multi-pet households
 
 ---
 
-## Real-World Use Cases
+### Example 9: BYOD with Quality Validation
 
-### Use Case 1: Training a Pet Detector
+**Scenario:** Critical dataset, need high accuracy
 
-**Scenario:** You're building a mobile app to detect pets in photos
-
-**Requirements:**
-- 50 images each of dogs and cats
-- High-quality annotations
-- COCO format for PyTorch training
-
-**Solution:**
-
-**Step 1:** Create dog dataset
 ```bash
-python pipeline.py --query "dog" --count 50 \
-  --enable-quality-loop --validation-method visual \
+python pipeline.py --dir "./important_images" --query "defect" \
+  --enable-quality-loop \
+  --quality-iterations 3 \
+  --validation-method hybrid
+```
+
+**When to use:**
+- Manufacturing defect detection
+- Medical imaging
+- Safety-critical applications
+
+**Trade-off:**
+- Higher accuracy
+- Longer processing time
+- More API calls
+
+---
+
+## Quality Optimization
+
+### Example 10: Maximum Quality
+
+**Goal:** Best possible annotations, don't care about time
+
+```bash
+python pipeline.py --query "bicycle" --count 15 \
+  --enable-quality-loop \
+  --quality-iterations 5 \
+  --validation-method hybrid \
   --show-metrics
 ```
 
-**Step 2:** Create cat dataset
-```bash
-python pipeline.py --query "cat" --count 50 \
-  --enable-quality-loop --validation-method visual \
-  --show-metrics
-```
-
-**Step 3:** Merge datasets (manual or script)
-
-**Step 4:** Train model
-```python
-from pycocotools.coco import COCO
-
-coco = COCO('data/output/coco.json')
-# Use with your PyTorch/TensorFlow training pipeline
-```
-
-**Time:** ~30 minutes total  
-**Cost:** Free (using free tier)
-
----
-
-### Use Case 2: Annotating Security Camera Footage
-
-**Scenario:** You have 1000 frames from security cameras and need to detect vehicles
-
-**Requirements:**
-- Annotate existing images (no web search)
-- Detect cars, trucks, motorcycles
-- Fast processing
-
-**Solution:**
-
-**config.yaml:**
+**Configuration:**
 ```yaml
-pipeline:
-  mode: "byod"
-  image_dir: "C:/security_footage/frames"
-  query: "car,truck,motorcycle"
-
-quality_loop:
-  enabled: false  # Speed priority
-
-annotation:
-  num_workers: 1  # Free tier
-
-metrics:
-  enabled: true
-```
-
-**Run:**
-```bash
-python pipeline.py --config config.yaml
-```
-
-**Time:** ~1 hour for 1000 images  
-**Result:** All frames annotated with vehicle bounding boxes
-
----
-
-### Use Case 3: Creating a Retail Product Dataset
-
-**Scenario:** E-commerce company needs product detection for inventory management
-
-**Requirements:**
-- Multiple product categories
-- High accuracy (visual validation)
-- Production-ready dataset
-
-**Solution:**
-
-**products_config.yaml:**
-```yaml
-pipeline:
-  query: "shoes,bags,watches,sunglasses"
-  count: 100  # 25 per category
-
 quality_loop:
   enabled: true
-  max_iterations: 3
-  validation_method: "hybrid"  # Maximum accuracy
+  max_iterations: 5      # Maximum retries
+  validation_method: "hybrid"  # Best validation
 
 annotation:
-  num_workers: 1
-
-metrics:
-  enabled: true
-  show_summary: true
+  workers: 3             # Parallel processing
 ```
 
-**Run:**
-```bash
-python pipeline.py --config products_config.yaml
-```
-
-**Post-processing:**
-- Review visualizations in `data/debug/`
-- Manually verify critical annotations
-- Export to production system
-
-**Time:** ~2 hours  
-**Quality:** Production-ready
+**Expected:**
+- Processing time: 5-10 minutes
+- Success rate: 95-98%
+- API calls: High
 
 ---
 
-### Use Case 4: Research Dataset for Academic Paper
+### Example 11: Speed Optimized
 
-**Scenario:** PhD student needs a dataset of bicycles for research
+**Goal:** Fastest possible dataset creation
 
-**Requirements:**
-- 200 high-quality images
-- Diverse scenes and angles
-- Reproducible methodology
+```bash
+python pipeline.py --query "dog" --count 10 --no-metrics
+```
 
-**Solution:**
-
-**research_config.yaml:**
+**Configuration:**
 ```yaml
-pipeline:
-  query: "bicycle"
-  count: 200
+quality_loop:
+  enabled: false
 
+annotation:
+  workers: 1
+  
+metrics:
+  enabled: false
+```
+
+**Expected:**
+- Processing time: 1-2 minutes
+- Success rate: 80-85%
+- API calls: Minimal
+
+---
+
+### Example 12: Balanced Approach (Recommended)
+
+**Goal:** Good quality, reasonable speed
+
+```bash
+python pipeline.py --query "cat" --count 20 \
+  --enable-quality-loop \
+  --validation-method coordinate
+```
+
+**Configuration:**
+```yaml
 quality_loop:
   enabled: true
   max_iterations: 2
+  validation_method: "coordinate"
+
+annotation:
+  workers: 1
+```
+
+**Expected:**
+- Processing time: 3-4 minutes
+- Success rate: 90-92%
+- API calls: Moderate
+
+**Best for:**
+- Most use cases
+- Free tier users
+- Good balance
+
+---
+
+## Production Workflows
+
+### Example 13: Batch Dataset Creation
+
+**Scenario:** Need multiple datasets for different objects
+
+**Script: `create_datasets.sh`**
+```bash
+#!/bin/bash
+
+# Activate environment
+source venv/bin/activate
+
+# Create datasets
+python pipeline.py --query "dog" --count 50 --config prod_config.yaml
+sleep 60  # Wait for rate limit
+
+python pipeline.py --query "cat" --count 50 --config prod_config.yaml
+sleep 60
+
+python pipeline.py --query "bird" --count 50 --config prod_config.yaml
+
+# Merge outputs (custom script)
+python merge_datasets.py --output final_dataset.json
+```
+
+**prod_config.yaml:**
+```yaml
+quality_loop:
+  enabled: true
+  max_iterations: 3
   validation_method: "visual"
 
 annotation:
-  num_workers: 1
+  workers: 3
 
 metrics:
   enabled: true
   show_summary: true
 ```
 
-**Workflow:**
-```bash
-# Run pipeline
-python pipeline.py --config research_config.yaml
-
-# Visualize results
-python visualize_results.py
-
-# Document in paper
-# "Dataset created using Foundry v1.0 with visual validation"
-```
-
-**Benefits:**
-- Reproducible (config file saved)
-- Documented (metrics logged)
-- High quality (visual validation)
-
 ---
 
-## Workflow Examples
+### Example 14: Incremental Dataset Growth
 
-### Workflow 1: Iterative Dataset Refinement
+**Scenario:** Start with 10 images, grow to 100
 
-**Goal:** Build a dataset incrementally, reviewing and refining
-
-**Step 1:** Start small
+**Week 1:**
 ```bash
-python pipeline.py --query "cars" --count 5 \
-  --enable-quality-loop --show-metrics
+python pipeline.py --query "bicycle" --count 10 \
+  --enable-quality-loop
+# Output: data/output/coco_v1.json
 ```
 
-**Step 2:** Review
+**Week 2:**
 ```bash
-python visualize_results.py
-# Check data/debug/ for visualizations
+python pipeline.py --query "bicycle" --count 20 \
+  --enable-quality-loop
+# Output: data/output/coco_v2.json
 ```
 
-**Step 3:** Adjust and expand
-```bash
-# If quality is good, scale up
-python pipeline.py --query "cars" --count 20 \
-  --enable-quality-loop --validation-method visual
-```
-
-**Step 4:** Final production run
-```bash
-python pipeline.py --query "cars" --count 100 \
-  --enable-quality-loop --validation-method hybrid
-```
-
----
-
-### Workflow 2: Multi-Stage Dataset Creation
-
-**Goal:** Create a complex dataset with multiple object types
-
-**Stage 1:** Vehicles
-```bash
-python pipeline.py --query "car,truck,bus,motorcycle" --count 50
-```
-
-**Stage 2:** Pedestrians
-```bash
-python pipeline.py --query "person,pedestrian" --count 50
-```
-
-**Stage 3:** Traffic signs
-```bash
-python pipeline.py --query "stop sign,traffic light" --count 30
-```
-
-**Stage 4:** Merge (manual or script)
+**Merge script:**
 ```python
+# merge.py
 import json
 
-# Load all COCO files
-datasets = []
-for file in ['vehicles.json', 'pedestrians.json', 'signs.json']:
-    with open(file) as f:
-        datasets.append(json.load(f))
+def merge_coco_datasets(file1, file2, output):
+    with open(file1) as f1, open(file2) as f2:
+        d1 = json.load(f1)
+        d2 = json.load(f2)
+    
+    # Merge logic here
+    merged = {
+        "categories": d1["categories"],
+        "images": d1["images"] + d2["images"],
+        "annotations": d1["annotations"] + d2["annotations"]
+    }
+    
+    with open(output, 'w') as f:
+        json.dump(merged, f)
 
-# Merge logic here
-# Save final dataset
+merge_coco_datasets('coco_v1.json', 'coco_v2.json', 'coco_final.json')
 ```
 
 ---
 
-### Workflow 3: Quality Assurance Pipeline
+### Example 15: Dataset Validation Pipeline
 
-**Goal:** Ensure dataset quality through multiple validation stages
+**Scenario:** Create and validate dataset quality
 
-**Step 1:** Initial creation (fast)
 ```bash
-python pipeline.py --query "bicycles" --count 20
-```
+# Step 1: Create dataset
+python pipeline.py --query "dog" --count 50 \
+  --enable-quality-loop \
+  --validation-method hybrid \
+  --show-metrics > creation_log.txt
 
-**Step 2:** Visual inspection
-```bash
+# Step 2: Visualize
 python visualize_results.py
-# Manual review of data/debug/
+
+# Step 3: Manual review
+# Check visualizations, note any issues
+
+# Step 4: Re-run if needed with different config
 ```
 
-**Step 3:** Re-annotate problematic images
+---
+
+## Advanced Use Cases
+
+### Example 16: Domain-Specific Objects
+
+**Scenario:** Detecting specific car models
+
 ```bash
-# Copy problematic images to separate folder
-python pipeline.py --dir "data/review" --query "bicycle" \
-  --enable-quality-loop --validation-method hybrid
+python pipeline.py --query "tesla_model3,bmw_x5,honda_civic" --count 30 \
+  --enable-quality-loop \
+  --validation-method visual
 ```
 
-**Step 4:** Merge and finalize
+**Tips:**
+- Use specific, unambiguous names
+- Include model identifiers
+- Consider using custom search engine with car sites
 
 ---
 
-## Integration Examples
+### Example 17: Rare Objects
 
-### Example 1: PyTorch Integration
+**Scenario:** Objects that are hard to find
 
-```python
-from pycocotools.coco import COCO
-from torch.utils.data import Dataset
-import cv2
+```bash
+python pipeline.py --query "red_panda" --count 20 \
+  --enable-quality-loop
+```
 
-class FoundryDataset(Dataset):
-    def __init__(self, coco_path, img_dir):
-        self.coco = COCO(coco_path)
-        self.img_dir = img_dir
-        self.img_ids = list(self.coco.imgs.keys())
-    
-    def __getitem__(self, idx):
-        img_id = self.img_ids[idx]
-        img_info = self.coco.loadImgs(img_id)[0]
-        img_path = f"{self.img_dir}/{img_info['file_name']}"
-        
-        # Load image
-        img = cv2.imread(img_path)
-        
-        # Load annotations
-        ann_ids = self.coco.getAnnIds(imgIds=img_id)
-        anns = self.coco.loadAnns(ann_ids)
-        
-        # Extract bboxes and labels
-        boxes = [ann['bbox'] for ann in anns]
-        labels = [ann['category_id'] for ann in anns]
-        
-        return img, boxes, labels
-    
-    def __len__(self):
-        return len(self.img_ids)
+**Challenges:**
+- Fewer search results
+- May need multiple mining iterations
+- Curation may filter heavily
 
-# Usage
-dataset = FoundryDataset('data/output/coco.json', 'data/curated')
+**Solution:**
+```yaml
+# Adjust config for rare objects
+pipeline:
+  count: 20  # Start modest
+
+quality_loop:
+  enabled: true
+  validation_method: "visual"  # Ensure relevance
 ```
 
 ---
 
-### Example 2: TensorFlow Integration
+### Example 18: Indoor vs Outdoor Scenes
 
+**Scenario:** Need scene-specific datasets
+
+**Indoor:**
+```bash
+python pipeline.py --query "indoor_cat,indoor_dog" --count 25
+```
+
+**Outdoor:**
+```bash
+python pipeline.py --query "outdoor_cat,outdoor_dog" --count 25
+```
+
+**Tip:** Search engine context matters
+- Add location hints to query
+- Use scene descriptors
+- Filter in curation stage
+
+---
+
+### Example 19: Time-Sensitive Datasets
+
+**Scenario:** Current events, seasonal objects
+
+```bash
+# Holiday decorations
+python pipeline.py --query "christmas_tree,halloween_pumpkin" --count 15
+
+# Seasonal
+python pipeline.py --query "winter_coat,summer_dress" --count 20
+```
+
+**Note:** Search results vary by time of year
+
+---
+
+### Example 20: Creating Training/Validation Splits
+
+**Scenario:** Need separate train/val/test sets
+
+```bash
+# Create large dataset
+python pipeline.py --query "dog" --count 100 \
+  --enable-quality-loop
+
+# Use custom script to split
+python split_dataset.py --input data/output/coco.json \
+  --train 0.7 --val 0.15 --test 0.15
+```
+
+**split_dataset.py:**
 ```python
-import tensorflow as tf
 import json
+import random
 
-def load_foundry_dataset(coco_path, img_dir):
-    with open(coco_path) as f:
-        coco = json.load(f)
+def split_coco(input_file, train_ratio, val_ratio, test_ratio):
+    with open(input_file) as f:
+        data = json.load(f)
     
-    images = []
-    labels = []
+    images = data['images']
+    random.shuffle(images)
     
-    for img in coco['images']:
-        img_path = f"{img_dir}/{img['file_name']}"
-        
-        # Load image
-        img_data = tf.io.read_file(img_path)
-        img_tensor = tf.image.decode_jpeg(img_data)
-        
-        # Get annotations for this image
-        img_anns = [ann for ann in coco['annotations'] 
-                    if ann['image_id'] == img['id']]
-        
-        images.append(img_tensor)
-        labels.append(img_anns)
+    n = len(images)
+    train_end = int(n * train_ratio)
+    val_end = train_end + int(n * val_ratio)
     
-    return images, labels
-
-# Usage
-images, labels = load_foundry_dataset('data/output/coco.json', 'data/curated')
-```
-
----
-
-### Example 3: Automated Pipeline Script
-
-```python
-#!/usr/bin/env python3
-"""
-Automated dataset creation script
-"""
-import subprocess
-import time
-
-def create_dataset(query, count, config='config.yaml'):
-    """Run Foundry pipeline"""
-    cmd = [
-        'python', 'pipeline.py',
-        '--config', config,
-        '--query', query,
-        '--count', str(count)
-    ]
+    train_imgs = images[:train_end]
+    val_imgs = images[train_end:val_end]
+    test_imgs = images[val_end:]
     
-    print(f"Creating dataset for: {query}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Create separate COCO files for each split
+    # ... (implementation details)
     
-    if result.returncode == 0:
-        print(f"✅ Success: {query}")
-    else:
-        print(f"❌ Failed: {query}")
-        print(result.stderr)
-    
-    # Wait to avoid rate limits
-    time.sleep(60)
-
-# Create multiple datasets
-datasets = [
-    ('dog', 20),
-    ('cat', 20),
-    ('bird', 15),
-    ('car', 25)
-]
-
-for query, count in datasets:
-    create_dataset(query, count)
-
-print("All datasets created!")
-```
-
----
-
-### Example 4: Custom Validation Script
-
-```python
-#!/usr/bin/env python3
-"""
-Validate Foundry output quality
-"""
-import json
-
-def validate_coco(coco_path):
-    """Check COCO format validity"""
-    with open(coco_path) as f:
-        coco = json.load(f)
-    
-    issues = []
-    
-    # Check required fields
-    required = ['images', 'annotations', 'categories']
-    for field in required:
-        if field not in coco:
-            issues.append(f"Missing field: {field}")
-    
-    # Check annotations
-    for ann in coco.get('annotations', []):
-        bbox = ann.get('bbox', [])
-        if len(bbox) != 4:
-            issues.append(f"Invalid bbox in annotation {ann['id']}")
-        
-        if bbox[2] <= 0 or bbox[3] <= 0:
-            issues.append(f"Invalid bbox dimensions in {ann['id']}")
-    
-    # Report
-    if issues:
-        print("❌ Validation failed:")
-        for issue in issues:
-            print(f"  - {issue}")
-        return False
-    else:
-        print("✅ Validation passed!")
-        return True
-
-# Usage
-validate_coco('data/output/coco.json')
+split_coco('coco.json', 0.7, 0.15, 0.15)
 ```
 
 ---
 
 ## Tips & Tricks
 
-### Tip 1: Batch Processing with Rate Limits
+### Tip 1: Verify Multi-Object Output
 
 ```bash
-# Create a batch script
-for query in dog cat bird fish; do
-    python pipeline.py --query "$query" --count 10
-    echo "Waiting 60s to avoid rate limits..."
-    sleep 60
-done
+# Check categories were created correctly
+python -c "
+import json
+data = json.load(open('data/output/coco.json'))
+print('Categories:', [c['name'] for c in data['categories']])
+print('Total annotations:', len(data['annotations']))
+"
 ```
 
-### Tip 2: Config Templates
-
-Keep a library of configs for different scenarios:
-
-```
-configs/
-├── fast.yaml          # Speed priority
-├── quality.yaml       # Accuracy priority
-├── byod.yaml          # Template for own images
-└── production.yaml    # Balanced for production
-```
-
-### Tip 3: Visualization Review
+### Tip 2: Monitor API Usage
 
 ```bash
-# After pipeline run
+# Track API calls in real-time
+python pipeline.py --query "dog" --count 10 --show-metrics 2>&1 | \
+  grep -E "(API|Mining|Curation|Annotation)"
+```
+
+### Tip 3: Batch Processing with Error Recovery
+
+```python
+# batch_create.py
+import subprocess
+import time
+
+queries = ["dog", "cat", "bird", "fish"]
+
+for query in queries:
+    try:
+        subprocess.run([
+            "python", "pipeline.py",
+            "--query", query,
+            "--count", "20",
+            "--enable-quality-loop"
+        ], check=True)
+        
+        time.sleep(60)  # Rate limit cooldown
+        
+    except subprocess.CalledProcessError:
+        print(f"Failed for {query}, continuing...")
+        continue
+```
+
+---
+
+## Common Patterns
+
+### Pattern 1: Iterative Refinement
+
+```bash
+# Round 1: Quick test
+python pipeline.py --query "bicycle" --count 5
+
+# Review output
 python visualize_results.py
 
-# Open data/debug/ in image viewer
-# Quickly scan all annotations
+# Round 2: Full dataset with adjustments
+python pipeline.py --query "bicycle" --count 50 \
+  --enable-quality-loop \
+  --validation-method visual
 ```
 
-### Tip 4: Incremental Datasets
+### Pattern 2: Progressive Quality
 
 ```bash
-# Day 1: Create base
-python pipeline.py --query "cars" --count 50
+# Start fast, low quality
+python pipeline.py --query "dog" --count 100
 
-# Day 2: Add more (different search offset)
-# Images are deduplicated automatically
-python pipeline.py --query "cars" --count 50
+# Enhance subset with quality loop
+python enhance_annotations.py --input coco.json \
+  --output coco_enhanced.json \
+  --enable-quality-loop
+```
+
+### Pattern 3: Multi-Stage Pipeline
+
+```bash
+# Stage 1: Mine images
+python pipeline.py --query "dog" --count 50
+
+# Stage 2: Manual review & filtering
+# (Use external tools)
+
+# Stage 3: Re-annotate filtered set
+python pipeline.py --dir "data/curated" --query "dog" \
+  --enable-quality-loop
 ```
 
 ---
 
 ## Next Steps
 
-- See [USAGE.md](USAGE.md) for detailed command reference
-- See [../README.md](../README.md) for quick start guide
-- See [knowledge_transfer.md](knowledge_transfer.md) for technical details
-- See [test_report.md](test_report.md) for integration test results
+- **Integrate with training:** See [Training Guide](TRAINING.md)
+- **Advanced configuration:** See [USAGE.md](USAGE.md)
+- **Troubleshooting:** See [README.md](../README.md#troubleshooting)
+- **Architecture details:** See [knowledge_transfer.md](knowledge_transfer.md)
