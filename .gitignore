@@ -1,8 +1,19 @@
+# Environment and secrets
 .env
+*.key
+*.pem
+
+# Python
 venv/
 __pycache__/
+*.pyc
+
+# Data directories
 data/raw/
 data/curated/
 data/debug/
 data/output/
-*.pyc
+
+# Course materials (copyrighted)
+Course Notebooks/
+*.ipynb
